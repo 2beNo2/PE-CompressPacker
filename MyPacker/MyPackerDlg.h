@@ -33,4 +33,10 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 	virtual void OnOK();
+
+public:
+	afx_msg void OnBnClickedPacker();
+	afx_msg void OnBnClickedCancel();
+
+	CString m_csPackerFilePath;
 };

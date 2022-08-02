@@ -52,6 +52,7 @@ END_MESSAGE_MAP()
 
 CMyPackerDlg::CMyPackerDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MYPACKER_DIALOG, pParent)
+	, m_csPackerFilePath(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -59,12 +60,15 @@ CMyPackerDlg::CMyPackerDlg(CWnd* pParent /*=nullptr*/)
 void CMyPackerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, EDITBROWSE_FILE, m_csPackerFilePath);
 }
 
 BEGIN_MESSAGE_MAP(CMyPackerDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(BTN_PACKER, &CMyPackerDlg::OnBnClickedPacker)
+	ON_BN_CLICKED(BTN_CANCEL, &CMyPackerDlg::OnBnClickedCancel)
 END_MESSAGE_MAP()
 
 
@@ -152,11 +156,24 @@ HCURSOR CMyPackerDlg::OnQueryDragIcon()
 }
 
 
-
-
-
 void CMyPackerDlg::OnOK() {
 	// TODO: 在此添加专用代码和/或调用基类
 	return;
 	CDialogEx::OnOK();
+}
+
+
+void CMyPackerDlg::OnBnClickedPacker()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UpdateData(TRUE);
+
+	AfxMessageBox(m_csPackerFilePath);
+
+}
+
+
+void CMyPackerDlg::OnBnClickedCancel()
+{
+	// TODO: 在此添加控件通知处理程序代码
 }
