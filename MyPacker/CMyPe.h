@@ -155,5 +155,9 @@ public:
 
     // 导入表相关
     static LPVOID MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR lpProcName); // 增加导入表
+
+    // Load相关
+    static BOOL LoadPe();
+    static BOOL LoadDll();
 };
 

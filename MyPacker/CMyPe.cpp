@@ -82,6 +82,7 @@ void CMyPe::Init()
 void CMyPe::InitPeFormat(void* pFileBuff)
 {
     if (pFileBuff == NULL) return;
+
     if (IsPeFile(pFileBuff) != FILE_IS_PE)
     {
         return;
@@ -171,6 +172,7 @@ void CMyPe::InitPeFormat(void* pFileBuff)
 void CMyPe::InitPeFormat(const char* strFilePath)
 {
     if (strFilePath == NULL) return;
+
     if (IsPeFile(strFilePath) != FILE_IS_PE)
     {
         return;
@@ -232,6 +234,7 @@ int CMyPe::IsPeFile(void* pFileBuff)
 {
     if (pFileBuff == NULL) 
         return FILE_NOT_PE;
+
     // 判断是否PE文件
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)pFileBuff;
     if (pDosHeader->e_magic != 'ZM')
@@ -252,6 +255,7 @@ int CMyPe::IsPeFile(const char* strFilePath)
 {
     if (strFilePath == NULL) 
         return FIlE_OPEN_FAILD;
+
     // 打开文件
     HANDLE hFile = ::CreateFile(strFilePath,            // 文件路径
                                 GENERIC_READ | GENERIC_WRITE,  // 文件的打开方式
@@ -461,6 +465,7 @@ DWORD CMyPe::Rva2Fa(DWORD dwRva, LPVOID lpFileBuff)
 {
     if (lpFileBuff == NULL) 
         return -1;
+
     // PE格式解析
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
@@ -506,6 +511,7 @@ DWORD CMyPe::GetAlignSize(DWORD dwDataSize, DWORD dwAlign)
 {
     if (dwDataSize == 0)
         return 0;
+
     DWORD dwMod = dwDataSize % dwAlign;
     if (dwMod == 0)
     {
@@ -533,6 +539,7 @@ LPVOID CMyPe::AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, LPVOID lpDat
 {
     if (lpOldFileBuff == NULL) 
         return NULL;
+
     // PE格式解析
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpOldFileBuff;
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
@@ -616,6 +623,7 @@ void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
 {
     if (hInst == NULL)
         return;
+
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
@@ -648,6 +656,7 @@ void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
         {
             // 找到了目标模块的节点
             Pascal2CStr(lpModuleName, (char*)pCurNode->pUnicodeFileName, pCurNode->sLengthOfFile);
+            return;
         }
 
         pTmp = pPrevNode;
@@ -671,6 +680,7 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 {
     if (hInst == NULL)
         return;
+
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
@@ -703,6 +713,7 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
         {
             // 找到了目标模块的节点
             Pascal2CStr(lpModulePath, (char*)pCurNode->pUnicodePathName, pCurNode->sLengthOfPath);
+            return;
         }
 
         pTmp = pPrevNode;
@@ -726,6 +737,7 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 {
     if (lpModuleName == NULL)
         return NULL;
+
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
