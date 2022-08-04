@@ -14,7 +14,7 @@ private:
     HANDLE m_hFileMap;
     DWORD  m_dwFileSize;
     LPVOID m_lpFileBuff;
-    BOOL   m_bIsMemInit; // Èç¹û¹¹ÔìÊ±´«ÈëµÄÊÇÄÚ´æµØÖ·£¬Ôò²»ĞèÒªÈ¡ÏûÎÄ¼şÓ³Éä
+    BOOL   m_bIsMemInit; // å¦‚æœæ„é€ æ—¶ä¼ å…¥çš„æ˜¯å†…å­˜åœ°å€ï¼Œåˆ™ä¸éœ€è¦å–æ¶ˆæ–‡ä»¶æ˜ å°„
 
 private:
     void Init();
@@ -22,7 +22,7 @@ private:
     void InitPeFormat(const char* strFilePath);
 
 public:
-    // ÎÄ¼ş²Ù×÷Ïà¹Ø
+    // æ–‡ä»¶æ“ä½œç›¸å…³
     enum {
         FIlE_OPEN_FAILD,
         FIlE_WRITE_FAILD,
@@ -35,7 +35,7 @@ public:
     static int WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFilePath);
 
 public:
-    // PEÍ·²¿Êı¾İ
+    // PEå¤´éƒ¨æ•°æ®
     LPVOID GetDosHeaderPointer();
     LPVOID GetNtHeaderPointer();
     LPVOID GetFileHeaderPointer();
@@ -58,18 +58,18 @@ private:
     PIMAGE_OPTIONAL_HEADER m_pOptionHeader;
     PIMAGE_SECTION_HEADER  m_pSectionHeader;
 
-    PIMAGE_EXPORT_DIRECTORY   m_pExportDirectory;   // µ¼³ö±íÎ»ÓÚÊı¾İÄ¿Â¼µÚ0Ïî
-    PIMAGE_IMPORT_DESCRIPTOR  m_pImportDirectory;   // µ¼Èë±íÎ»ÓÚÊı¾İÄ¿Â¼µÚ1Ïî
-    PIMAGE_RESOURCE_DIRECTORY m_pResourceDirectory; // ×ÊÔ´±íÎ»ÓÚÊı¾İÄ¿Â¼µÚ2Ïî
-    PIMAGE_BASE_RELOCATION    m_pRelocDirectory;    // ÖØ¶¨Î»±íÎ»ÓÚÊı¾İÄ¿Â¼µÚ5Ïî
-    PIMAGE_TLS_DIRECTORY      m_pTlsDirectory;      // TLSÎ»ÓÚÊı¾İÄ¿Â¼µÚ9Ïî
+    PIMAGE_EXPORT_DIRECTORY   m_pExportDirectory;   // å¯¼å‡ºè¡¨ä½äºæ•°æ®ç›®å½•ç¬¬0é¡¹
+    PIMAGE_IMPORT_DESCRIPTOR  m_pImportDirectory;   // å¯¼å…¥è¡¨ä½äºæ•°æ®ç›®å½•ç¬¬1é¡¹
+    PIMAGE_RESOURCE_DIRECTORY m_pResourceDirectory; // èµ„æºè¡¨ä½äºæ•°æ®ç›®å½•ç¬¬2é¡¹
+    PIMAGE_BASE_RELOCATION    m_pRelocDirectory;    // é‡å®šä½è¡¨ä½äºæ•°æ®ç›®å½•ç¬¬5é¡¹
+    PIMAGE_TLS_DIRECTORY      m_pTlsDirectory;      // TLSä½äºæ•°æ®ç›®å½•ç¬¬9é¡¹
 
-    DWORD m_dwExportSize; // µ¼³ö±íµÄsizeÊÇÓĞÓÃµÄ
-    DWORD m_dwImportSize; // importÊ¹ÓÃÈ«0½á¹¹½áÎ²
-    DWORD m_dwRelocSize;  // ÖØ¶¨Î»±íµÄsizeÊÇÓĞÓÃµÄ£¬±éÀúÊ±»áÓÃÉÏ
+    DWORD m_dwExportSize; // å¯¼å‡ºè¡¨çš„sizeæ˜¯æœ‰ç”¨çš„
+    DWORD m_dwImportSize; // importä½¿ç”¨å…¨0ç»“æ„ç»“å°¾
+    DWORD m_dwRelocSize;  // é‡å®šä½è¡¨çš„sizeæ˜¯æœ‰ç”¨çš„ï¼Œéå†æ—¶ä¼šç”¨ä¸Š
 
 public:
-    // PE½á¹¹²¿·ÖÖØÒª×Ö¶Î
+    // PEç»“æ„éƒ¨åˆ†é‡è¦å­—æ®µ
     WORD  GetNumberOfSections();
     DWORD GetAddressOfEntryPoint();
     DWORD GetImageBase();
@@ -80,29 +80,32 @@ public:
     DWORD GetNumberOfRvaAndSizes();
 
 private:
-    WORD  m_wNumberOfSections;      // ½Ú±íµÄ¸öÊı
-    DWORD m_dwAddressOfEntryPoint;  // ³ÌĞòÈë¿Úµã£¬RVA
-    DWORD m_dwImageBase;            // ³ÌĞòµÄ½¨Òé×°ÔØµØÖ·
-    DWORD m_dwSectionAlignment;     // ÔÚÄÚ´æÖĞµÄ¶ÔÆë 
-    DWORD m_dwFileAlignment;        // ÔÚÎÄ¼şÖĞµÄ¶ÔÆë
-    DWORD m_dwSizeOfImage;          // ÎÄ¼şÔØÈëÄÚ´æ²¢¶ÔÆëºóµÄ´óĞ¡
-    DWORD m_dwSizeOfHeaders;        // PEÍ·µÄ´óĞ¡
-    DWORD m_dwNumberOfRvaAndSizes;  // Êı¾İÄ¿Â¼µÄ¸öÊı
+    WORD  m_wNumberOfSections;      // èŠ‚è¡¨çš„ä¸ªæ•°
+    DWORD m_dwAddressOfEntryPoint;  // ç¨‹åºå…¥å£ç‚¹ï¼ŒRVA
+    DWORD m_dwImageBase;            // ç¨‹åºçš„å»ºè®®è£…è½½åœ°å€
+    DWORD m_dwSectionAlignment;     // åœ¨å†…å­˜ä¸­çš„å¯¹é½ 
+    DWORD m_dwFileAlignment;        // åœ¨æ–‡ä»¶ä¸­çš„å¯¹é½
+    DWORD m_dwSizeOfImage;          // æ–‡ä»¶è½½å…¥å†…å­˜å¹¶å¯¹é½åçš„å¤§å°
+    DWORD m_dwSizeOfHeaders;        // PEå¤´çš„å¤§å°
+    DWORD m_dwNumberOfRvaAndSizes;  // æ•°æ®ç›®å½•çš„ä¸ªæ•°
 
 public:
-    // ¹¦ÄÜ·½·¨
+    // åŠŸèƒ½æ–¹æ³•
     static DWORD  Rva2Fa(DWORD dwRva, LPVOID lpFileBuff);
     static DWORD  GetAlignSize(DWORD dwDataSize, DWORD dwAlign);
 
-    // ½ÚÏà¹Ø
+    // èŠ‚ç›¸å…³
     static LPVOID AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, 
-        LPVOID lpDataBuff = NULL, DWORD dwDataSize = NULL); // ĞÂÔöSection
+        LPVOID lpDataBuff = NULL, DWORD dwDataSize = NULL); // æ–°å¢Section
 
-    // µ¼³ö±íÏà¹Ø
-    static LPVOID MyGetProcFunName(LPVOID pfnAddr); // Í¨¹ıº¯ÊıµØÖ·»ñÈ¡º¯ÊıÃû³Æ/ĞòºÅ
-    static LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName); // ×ÔÊµÏÖµÄGetProcAddress
+    // å¯¼å‡ºè¡¨ç›¸å…³
+    static LPVOID MyGetModuleName(LPVOID pfnAddr);
+    static LPVOID MyGetModulePath(LPVOID pfnAddr);
+    static LPVOID MyGetModuleBase(LPVOID pfnAddr);
+    static LPVOID MyGetProcFunName(LPVOID pfnAddr); // é€šè¿‡å‡½æ•°åœ°å€è·å–å‡½æ•°åç§°/åºå·
+    static LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName); // è‡ªå®ç°çš„GetProcAddress
 
-    // µ¼Èë±íÏà¹Ø
-    static LPVOID MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR lpProcName); // Ôö¼Óµ¼Èë±í
+    // å¯¼å…¥è¡¨ç›¸å…³
+    static LPVOID MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR lpProcName); // å¢åŠ å¯¼å…¥è¡¨
 };
 
