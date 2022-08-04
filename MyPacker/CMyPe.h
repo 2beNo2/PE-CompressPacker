@@ -1,5 +1,6 @@
-#pragma once
+﻿#pragma once
 #include <Windows.h>
+
 
 /*
 模块信息表{
@@ -42,6 +43,11 @@ struct MY_LIST_ENTRY
     short sSizeOfFile;      //0x2E
     int* pUnicodeFileName;  //0x30
 };
+
+
+#define OUT
+#define IN
+#define INOUT
 
 class CMyPe
 {
@@ -141,9 +147,9 @@ public:
         LPVOID lpDataBuff = NULL, DWORD dwDataSize = NULL); // 新增Section
 
     // 导出表相关
-    static LPVOID MyGetModuleName(HMODULE hInst);                     // 通过模块句柄获取模块名称
-    static LPVOID MyGetModulePath(HMODULE hInst);                     // 通过模块句柄获取模块路径
-    static LPVOID MyGetModuleBase(LPCSTR lpProcName);                 // 通过模块名称获取模块句柄
+    static void MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName);  // 通过模块句柄获取模块名称
+    static void MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath);  // 通过模块句柄获取模块路径
+    static LPVOID MyGetModuleBase(LPCSTR lpModuleName);               // 通过模块名称获取模块句柄
     static LPVOID MyGetProcFunName(LPVOID pfnAddr);                   // 通过函数地址获取函数名称/序号
     static LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName); // 自实现的GetProcAddress
 

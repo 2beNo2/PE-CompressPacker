@@ -110,7 +110,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -185,6 +185,7 @@
   <ItemGroup>
     <ClInclude Include="CMyPe.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="MyLibC.h" />
     <ClInclude Include="MyPacker.h" />
     <ClInclude Include="MyPackerDlg.h" />
     <ClInclude Include="pch.h" />
@@ -193,6 +194,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CMyPe.cpp" />
+    <ClCompile Include="MyLibC.cpp" />
     <ClCompile Include="MyPacker.cpp" />
     <ClCompile Include="MyPackerDlg.cpp" />
     <ClCompile Include="pch.cpp">
