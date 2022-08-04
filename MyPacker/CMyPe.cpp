@@ -591,6 +591,147 @@ LPVOID CMyPe::AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, LPVOID lpDat
 
 
 /*
+函数功能：通过模块句柄获取模块名称
+参数：
+  hInst：目标模块句柄
+返回值：
+  成功返回目标模块的名称
+  失败返回NULL
+*/
+LPVOID CMyPe::MyGetModuleName(HMODULE hInst)
+{
+    MY_LIST_ENTRY* pCurNode = NULL;
+    MY_LIST_ENTRY* pPrevNode = NULL;
+    MY_LIST_ENTRY* pNextNode = NULL;
+
+    // 通过TEB获取模块信息表
+    __asm {
+        pushad;
+        mov eax, fs: [0x18] ;   //teb
+        mov eax, [eax + 0x30];  //peb
+        mov eax, [eax + 0x0c];  //_PEB_LDR_DATA
+        mov eax, [eax + 0x0c];  //模块信息表_LIST_ENTRY,主模块
+        mov pCurNode, eax;
+        mov ebx, dword ptr[eax];
+        mov pPrevNode, ebx;
+        mov ebx, dword ptr[eax + 0x4];
+        mov pNextNode, ebx;
+        popad;
+    }
+
+    if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
+    {
+        return NULL;
+    }
+
+    // 遍历模块信息表
+    MY_LIST_ENTRY* pTmp = NULL;
+    while (pCurNode != pPrevNode)
+    {
+        if (hInst == pCurNode->hInstance)
+        {
+            // 找到了目标模块的节点
+
+        }
+
+        pTmp = pPrevNode;
+        pCurNode = pTmp;
+        pPrevNode = pTmp->Flink;
+        pNextNode = pTmp->Blink;
+    }
+    return NULL;
+}
+
+
+
+LPVOID CMyPe::MyGetModulePath(HMODULE hInst)
+{
+    MY_LIST_ENTRY* pCurNode = NULL;
+    MY_LIST_ENTRY* pPrevNode = NULL;
+    MY_LIST_ENTRY* pNextNode = NULL;
+
+    // 通过TEB获取模块信息表
+    __asm {
+        pushad;
+        mov eax, fs: [0x18] ;   //teb
+        mov eax, [eax + 0x30];  //peb
+        mov eax, [eax + 0x0c];  //_PEB_LDR_DATA
+        mov eax, [eax + 0x0c];  //模块信息表_LIST_ENTRY,主模块
+        mov pCurNode, eax;
+        mov ebx, dword ptr[eax];
+        mov pPrevNode, ebx;
+        mov ebx, dword ptr[eax + 0x4];
+        mov pNextNode, ebx;
+        popad;
+    }
+
+    if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
+    {
+        return NULL;
+    }
+
+    // 遍历模块信息表
+    MY_LIST_ENTRY* pTmp = NULL;
+    while (pCurNode != pPrevNode)
+    {
+        if (hInst == pCurNode->hInstance)
+        {
+            // 找到了目标模块的节点
+        }
+
+        pTmp = pPrevNode;
+        pCurNode = pTmp;
+        pPrevNode = pTmp->Flink;
+        pNextNode = pTmp->Blink;
+    }
+    return NULL;
+}
+
+
+
+LPVOID CMyPe::MyGetModuleBase(LPCSTR lpProcName)
+{
+    MY_LIST_ENTRY* pCurNode = NULL;
+    MY_LIST_ENTRY* pPrevNode = NULL;
+    MY_LIST_ENTRY* pNextNode = NULL;
+
+    // 通过TEB获取模块信息表
+    __asm {
+        pushad;
+        mov eax, fs: [0x18] ;   //teb
+        mov eax, [eax + 0x30];  //peb
+        mov eax, [eax + 0x0c];  //_PEB_LDR_DATA
+        mov eax, [eax + 0x0c];  //模块信息表_LIST_ENTRY,主模块
+        mov pCurNode, eax;
+        mov ebx, dword ptr[eax];
+        mov pPrevNode, ebx;
+        mov ebx, dword ptr[eax + 0x4];
+        mov pNextNode, ebx;
+        popad;
+    }
+
+    if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
+    {
+        return NULL;
+    }
+
+    // 遍历模块信息表
+    HMODULE hModule = NULL;
+    MY_LIST_ENTRY* pTmp = NULL;
+    while (pCurNode != pPrevNode)
+    {
+        hModule = pCurNode->hInstance;
+
+        pTmp = pPrevNode;
+        pCurNode = pTmp;
+        pPrevNode = pTmp->Flink;
+        pNextNode = pTmp->Blink;
+    }
+    return NULL;
+}
+
+
+/*
 函数功能：通过函数地址获取函数名称/序号
 参数：
   pfnAddr：目标函数地址
@@ -600,46 +741,9 @@ LPVOID CMyPe::AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, LPVOID lpDat
 */
 LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
 {
-    /*
-    模块信息表{
-      +0  //前一个表的地址
-      +4  //后一个表的地址
-      +18 //当前模块的基址 hInstance
-      +1C //模块的入口点
-      +20 //SizeOfImage
-      +24 //Rtl格式的unicode字符串，保存了模块的路径
-          {
-              +0 //字符串实际长度
-            +2 //字符串所占的空间大小
-            +4 //unicode字符串的地址
-          }
-      +2C //Rtl格式的unicode字符串，保存了模块的名称
-    }
-    */
-    struct _LIST_ENTRY
-    {
-        struct _LIST_ENTRY* Flink;  //0x0
-        struct _LIST_ENTRY* Blink;  //0x4
-        int n1;    //0x8
-        int n2;    //0xC
-        int n3;    //0x10
-        int n4;    //0x14
-        HMODULE hInstance;      //0x18
-        void* pEntryPoint;      //0x1C
-        int nSizeOfImage;       //0x20
-
-        short sLengthOfPath;    //0x24
-        short sSizeOfPath;      //0x26
-        int* pUnicodePathName;  //0x28
-
-        short sLengthOfFile;    //0x2C
-        short sSizeOfFile;      //0x2E
-        int* pUnicodeFileName;  //0x30
-    };
-
-    _LIST_ENTRY* pCurNode = NULL;
-    _LIST_ENTRY* pPrevNode = NULL;
-    _LIST_ENTRY* pNextNode = NULL;
+    MY_LIST_ENTRY* pCurNode = NULL;
+    MY_LIST_ENTRY* pPrevNode = NULL;
+    MY_LIST_ENTRY* pNextNode = NULL;
 
     // 通过TEB获取模块信息表
     __asm {
@@ -663,7 +767,7 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
 
     // 遍历模块信息表，在模块的导出表中查找
     HMODULE hModule = NULL;
-    _LIST_ENTRY* pTmp = NULL;
+    MY_LIST_ENTRY* pTmp = NULL;
     while (pCurNode != pPrevNode)
     {
         hModule = pCurNode->hInstance;
@@ -890,11 +994,5 @@ LPVOID CMyPe::MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR l
     pNewOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress =
         (DWORD)pNewImportTable - (DWORD)lpNewFileBuff - dwAddSectionPointerToRawData + dwAddSectionVirtualAddress;
 
-    // 测试
-    CMyPe::WriteMemoryToFile(lpNewFileBuff,
-        pAddSectionHeader->SizeOfRawData + (DWORD)pAddSectionHeader->PointerToRawData,
-        TEXT("C:\\Users\\hc\\Desktop\\test\\1.out"));
-    free(lpNewFileBuff);
-
-    return NULL;
+    return lpNewFileBuff;
 }
