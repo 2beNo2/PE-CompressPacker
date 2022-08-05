@@ -176,4 +176,5 @@ void CMyPackerDlg::OnBnClickedPacker()
 void CMyPackerDlg::OnBnClickedCancel()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	CMyPe::MyLoadLibrary("C:\\Users\\e\\Desktop\\shell\\TestDll.dll");
 }

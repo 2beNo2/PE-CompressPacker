@@ -351,102 +351,102 @@ int CMyPe::WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFile
 }
 
 
-LPVOID CMyPe::GetDosHeaderPointer()
+LPVOID CMyPe::GetDosHeaderPointer() const
 {
     return m_pDosHeader;
 }
 
-LPVOID CMyPe::GetNtHeaderPointer()
+LPVOID CMyPe::GetNtHeaderPointer() const
 {
     return m_pNtHeader;
 }
 
-LPVOID CMyPe::GetFileHeaderPointer()
+LPVOID CMyPe::GetFileHeaderPointer() const
 {
     return m_pFileHeader;
 }
 
-LPVOID CMyPe::GetOptionHeaderPointer()
+LPVOID CMyPe::GetOptionHeaderPointer() const
 {
     return m_pOptionHeader;
 }
 
-LPVOID CMyPe::GetSectionHeaderPointer()
+LPVOID CMyPe::GetSectionHeaderPointer() const
 {
     return m_pSectionHeader;
 }
 
-LPVOID CMyPe::GetExportDirectoryPointer()
+LPVOID CMyPe::GetExportDirectoryPointer() const
 {
     return m_pExportDirectory;
 }
 
-DWORD CMyPe::GetExportDirectorySize()
+DWORD CMyPe::GetExportDirectorySize() const
 {
     return m_dwExportSize;
 }
 
-LPVOID CMyPe::GetImportDirectoryPointer()
+LPVOID CMyPe::GetImportDirectoryPointer() const
 {
     return m_pImportDirectory;
 }
 
-LPVOID CMyPe::GetResourceDirectoryPointer()
+LPVOID CMyPe::GetResourceDirectoryPointer() const
 {
     return m_pResourceDirectory;
 }
 
-LPVOID CMyPe::GetRelocDirectoryPointer()
+LPVOID CMyPe::GetRelocDirectoryPointer() const
 {
     return m_pRelocDirectory;
 }
 
-DWORD CMyPe::GetRelocDirectorySize()
+DWORD CMyPe::GetRelocDirectorySize() const
 {
     return m_dwRelocSize;
 }
 
-LPVOID CMyPe::GetTlsDirectoryPointer()
+LPVOID CMyPe::GetTlsDirectoryPointer() const
 {
     return m_pTlsDirectory;
 }
 
-WORD CMyPe::GetNumberOfSections()
+WORD CMyPe::GetNumberOfSections() const
 {
     return m_wNumberOfSections;
 }
 
-DWORD CMyPe::GetAddressOfEntryPoint()
+DWORD CMyPe::GetAddressOfEntryPoint() const
 {
     return m_dwAddressOfEntryPoint;
 }
 
-DWORD CMyPe::GetImageBase()
+DWORD CMyPe::GetImageBase() const
 {
     return m_dwImageBase;
 }
 
-DWORD CMyPe::GetSectionAlignment()
+DWORD CMyPe::GetSectionAlignment() const
 {
     return m_dwSectionAlignment;
 }
 
-DWORD CMyPe::GetFileAlignment()
+DWORD CMyPe::GetFileAlignment() const
 {
     return m_dwFileAlignment;
 }
 
-DWORD CMyPe::GetSizeOfImage()
+DWORD CMyPe::GetSizeOfImage() const
 {
     return m_dwSizeOfImage;
 }
 
-DWORD CMyPe::GetSizeOfHeaders()
+DWORD CMyPe::GetSizeOfHeaders() const
 {
     return m_dwSizeOfHeaders;
 }
 
-DWORD CMyPe::GetNumberOfRvaAndSizes()
+DWORD CMyPe::GetNumberOfRvaAndSizes() const
 {
     return m_dwNumberOfRvaAndSizes;
 }
@@ -726,9 +726,9 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 
 
 /*
-函数功能：通过模块名称获取模块句柄
+函数功能：通过模块名称/模块路径获取模块句柄
 参数：
-  lpModuleName：模块名称
+  lpModuleName：模块名称/模块路径
 返回值：
   成功返回模块句柄
   失败返回NULL
@@ -765,13 +765,22 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
     // 模块名转换成Pascal字符串
     int nLen = MyStrLen(lpModuleName);
     char* pDst = (char*)malloc(nLen * 2);
+    ::RtlZeroMemory(pDst, nLen * 2);
     CStr2Pascal(pDst, lpModuleName, nLen);
 
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;
     while (pCurNode != pPrevNode) 
     {
+        // 比较模块名称
         if (MyMemCmp(pDst, pCurNode->pUnicodeFileName, nLen * 2) && (nLen * 2) == pCurNode->sLengthOfFile)
+        {
+            free(pDst);
+            return pCurNode->hInstance;
+        }
+
+        // 比较模块路径
+        if (MyMemCmp(pDst, pCurNode->pUnicodePathName, nLen * 2) && (nLen * 2) == pCurNode->sLengthOfPath)
         {
             free(pDst);
             return pCurNode->hInstance;
@@ -788,6 +797,88 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
         free(pDst);
     }
 
+    return NULL;
+}
+
+
+/*
+函数功能：自实现的LoadLibrary
+参数：
+  lpModulePath：模块路径
+返回值：
+  成功返回模块句柄
+  失败返回NULL
+*/
+LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
+{
+    if (lpModulePath == NULL)
+        return NULL;
+
+    // 先在模块列表中查找模块是否已经加载
+    HMODULE hInst = (HMODULE)CMyPe::MyGetModuleBase(lpModulePath);
+    if (hInst != NULL)
+    {
+        //return hInst;
+    }
+
+    // LoadDll
+
+    // 检查是否为PE格式
+    if (IsPeFile(lpModulePath) != FILE_IS_PE)
+    {
+        return NULL;
+    }
+
+    // 打开文件
+    HANDLE hFile = ::CreateFile(lpModulePath,           // 文件路径
+                                GENERIC_READ | GENERIC_WRITE,  // 文件的打开方式
+                                FILE_SHARE_READ,        // 共享模式，其他文件可读
+                                NULL,                   // 安全属性，用于确定返回的句柄是否可以被子进程继承
+                                OPEN_EXISTING,          // 打开方式
+                                FILE_ATTRIBUTE_NORMAL,  // 文件属性
+                                NULL);
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return NULL;
+    }
+
+    // 获取文件大小
+    DWORD dwFileSize = ::GetFileSize(hFile, NULL);
+
+    // 创建文件映射对象
+    HANDLE hFileMap = ::CreateFileMapping(hFile,     // 文件句柄
+                                          NULL,      // 安全属性，用于确定返回的句柄是否可以被子进程继承
+                                          PAGE_READWRITE, // 映射后内存页的内存属性
+                                          NULL,      // 大于4G时设置
+                                          dwFileSize,// 映射大小
+                                          NULL);     // 文件映射对象的名称，设置后可用于进程间通信
+    if (hFileMap == NULL)
+    {
+        goto EXIT_PROC;
+    }
+
+    // 将文件映射到内存
+    LPVOID lpFileBuff = ::MapViewOfFile(hFileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    if (lpFileBuff == NULL) {
+        goto EXIT_PROC;
+    }
+
+    // PE 格式解析
+    CMyPe* pDll = new CMyPe(lpFileBuff);
+    DWORD dwSizeOfImage = pDll->GetSizeOfImage();
+    // 
+
+
+EXIT_PROC:
+    if (hFileMap != NULL)
+    {
+        ::CloseHandle(hFileMap);
+    }
+
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        ::CloseHandle(hFile);
+    }
     return NULL;
 }
 

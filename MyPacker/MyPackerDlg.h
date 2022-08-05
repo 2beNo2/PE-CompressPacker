@@ -3,7 +3,7 @@
 //
 
 #pragma once
-
+#include "CMyPe.h"
 
 // CMyPackerDlg 对话框
 class CMyPackerDlg : public CDialogEx
