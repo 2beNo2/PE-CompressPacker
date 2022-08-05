@@ -50,9 +50,8 @@ int MyStrLen(const char* pSrc) {
 
 void Pascal2CStr(char* pDst, const char* pSrc, int nSize) {
 	int nIndex = 0;
-	for (int i = 0; i < nSize; ) {
+	for (int i = 0; i < nSize; i += 2) {
 		pDst[nIndex] = pSrc[i];
-		i += 2;
 		nIndex++;
 	}
 }
@@ -60,9 +59,8 @@ void Pascal2CStr(char* pDst, const char* pSrc, int nSize) {
 
 void CStr2Pascal(char* pDst, const char* pSrc, int nSize) {
 	int nIndex = 0;
-	for (int i = 0; i < nSize; ) {
-		pDst[i] = pSrc[nIndex];
-		i += 2;
-		nIndex++;
+	for (int i = 0; i < nSize; ++i) {
+		pDst[nIndex] = pSrc[i];
+		nIndex += 2;
 	}
 }

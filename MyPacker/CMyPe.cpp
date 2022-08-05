@@ -627,6 +627,7 @@ void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
+    MY_LIST_ENTRY* pFirstNode = NULL;
 
     // 通过TEB获取模块信息表
     __asm {
@@ -643,6 +644,7 @@ void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
         popad;
     }
 
+    pFirstNode = pCurNode;
     if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
     {
         return;
@@ -650,7 +652,7 @@ void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
 
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;
-    while (pCurNode != pPrevNode)
+    while (pPrevNode != pFirstNode)
     {
         if (hInst == pCurNode->hInstance)
         {
@@ -684,6 +686,7 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
+    MY_LIST_ENTRY* pFirstNode = NULL;
 
     // 通过TEB获取模块信息表
     __asm {
@@ -700,6 +703,7 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
         popad;
     }
 
+    pFirstNode = pCurNode;
     if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
     {
         return;
@@ -707,7 +711,7 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;
-    while (pCurNode != pPrevNode)
+    while (pPrevNode != pFirstNode)
     {
         if (hInst == pCurNode->hInstance)
         {
@@ -741,6 +745,7 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
+    MY_LIST_ENTRY* pFirstNode = NULL;
 
     // 通过TEB获取模块信息表
     __asm {
@@ -757,6 +762,7 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
         popad;
     }
 
+    pFirstNode = pCurNode;
     if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
     {
         return NULL;
@@ -770,17 +776,17 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;
-    while (pCurNode != pPrevNode) 
+    while (pPrevNode != pFirstNode)
     {
         // 比较模块名称
-        if (MyMemCmp(pDst, pCurNode->pUnicodeFileName, nLen * 2) && (nLen * 2) == pCurNode->sLengthOfFile)
+        if (MyMemCmp(pDst, pCurNode->pUnicodeFileName, nLen * 2) == 0 && (nLen * 2) == pCurNode->sLengthOfFile)
         {
             free(pDst);
             return pCurNode->hInstance;
         }
 
         // 比较模块路径
-        if (MyMemCmp(pDst, pCurNode->pUnicodePathName, nLen * 2) && (nLen * 2) == pCurNode->sLengthOfPath)
+        if (MyMemCmp(pDst, pCurNode->pUnicodePathName, nLen * 2) == 0 && (nLen * 2) == pCurNode->sLengthOfPath)
         {
             free(pDst);
             return pCurNode->hInstance;
@@ -802,7 +808,7 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 
 
 /*
-函数功能：自实现的LoadLibrary
+函数功能：自实现的LoadLibrary，未完成
 参数：
   lpModulePath：模块路径
 返回值：
@@ -811,6 +817,11 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 */
 LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
 {
+    HANDLE hFile = INVALID_HANDLE_VALUE;
+    HANDLE hFileMap = NULL;
+    LPVOID lpFileBuff = NULL;
+    IMAGE_IMPORT_DESCRIPTOR ZeroImport = { 0 };
+
     if (lpModulePath == NULL)
         return NULL;
 
@@ -818,11 +829,10 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     HMODULE hInst = (HMODULE)CMyPe::MyGetModuleBase(lpModulePath);
     if (hInst != NULL)
     {
-        //return hInst;
+        return hInst;
     }
 
     // LoadDll
-
     // 检查是否为PE格式
     if (IsPeFile(lpModulePath) != FILE_IS_PE)
     {
@@ -830,13 +840,13 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     }
 
     // 打开文件
-    HANDLE hFile = ::CreateFile(lpModulePath,           // 文件路径
-                                GENERIC_READ | GENERIC_WRITE,  // 文件的打开方式
-                                FILE_SHARE_READ,        // 共享模式，其他文件可读
-                                NULL,                   // 安全属性，用于确定返回的句柄是否可以被子进程继承
-                                OPEN_EXISTING,          // 打开方式
-                                FILE_ATTRIBUTE_NORMAL,  // 文件属性
-                                NULL);
+    hFile = ::CreateFile(lpModulePath,           // 文件路径
+                         GENERIC_READ | GENERIC_WRITE,  // 文件的打开方式
+                         FILE_SHARE_READ,        // 共享模式，其他文件可读
+                         NULL,                   // 安全属性，用于确定返回的句柄是否可以被子进程继承
+                         OPEN_EXISTING,          // 打开方式
+                         FILE_ATTRIBUTE_NORMAL,  // 文件属性
+                         NULL);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         return NULL;
@@ -846,19 +856,19 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     DWORD dwFileSize = ::GetFileSize(hFile, NULL);
 
     // 创建文件映射对象
-    HANDLE hFileMap = ::CreateFileMapping(hFile,     // 文件句柄
-                                          NULL,      // 安全属性，用于确定返回的句柄是否可以被子进程继承
-                                          PAGE_READWRITE, // 映射后内存页的内存属性
-                                          NULL,      // 大于4G时设置
-                                          dwFileSize,// 映射大小
-                                          NULL);     // 文件映射对象的名称，设置后可用于进程间通信
+    hFileMap = ::CreateFileMapping(hFile,     // 文件句柄
+                                   NULL,      // 安全属性，用于确定返回的句柄是否可以被子进程继承
+                                   PAGE_READWRITE, // 映射后内存页的内存属性
+                                   NULL,      // 大于4G时设置
+                                   dwFileSize,// 映射大小
+                                   NULL);     // 文件映射对象的名称，设置后可用于进程间通信
     if (hFileMap == NULL)
     {
         goto EXIT_PROC;
     }
 
     // 将文件映射到内存
-    LPVOID lpFileBuff = ::MapViewOfFile(hFileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    lpFileBuff = ::MapViewOfFile(hFileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (lpFileBuff == NULL) {
         goto EXIT_PROC;
     }
@@ -866,10 +876,82 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     // PE 格式解析
     CMyPe* pDll = new CMyPe(lpFileBuff);
     DWORD dwSizeOfImage = pDll->GetSizeOfImage();
-    // 
+    
+    // 申请内存空间，可以通过模块信息表获取函数地址
+    LPVOID lpDllBuff = ::VirtualAlloc(NULL, dwSizeOfImage, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (lpDllBuff == NULL) {
+        goto EXIT_PROC;
+    }
 
+    // 拷贝PE头
+    MyMemCopy(lpDllBuff, pDll->GetDosHeaderPointer(), pDll->GetSizeOfHeaders());
+
+    // 拉伸节表
+    PIMAGE_SECTION_HEADER pSection = (PIMAGE_SECTION_HEADER)pDll->GetSectionHeaderPointer();
+    for (int i = 0; i < pDll->GetNumberOfSections(); ++i) 
+    {
+        // 判断是有文件映射
+        if (pSection[i].SizeOfRawData != 0) 
+        {
+            MyMemCopy((char*)lpDllBuff + pSection[i].VirtualAddress,
+                      (char*)lpFileBuff + pSection[i].PointerToRawData,
+                      pSection[i].SizeOfRawData);
+        }
+    }
+
+    // 修复导入表
+    PIMAGE_IMPORT_DESCRIPTOR pImport = (PIMAGE_IMPORT_DESCRIPTOR)pDll->GetImportDirectoryPointer();
+    
+    while (MyMemCmp(pImport, &ZeroImport, sizeof(IMAGE_IMPORT_DESCRIPTOR) != 0))
+    {
+        // 判断是否有效导入表项
+        if (*(DWORD*)((char*)lpDllBuff + pImport->FirstThunk) != NULL) 
+        {
+            // 判断INT是否为空，INT为空时则使用IAT
+            DWORD* pThunk = (DWORD*)((char*)lpDllBuff + pImport->OriginalFirstThunk);
+            if (pImport->OriginalFirstThunk == NULL) 
+            {
+                pThunk = (DWORD*)((char*)lpDllBuff + pImport->FirstThunk);
+            }
+
+            // 循环INT/IAT
+            while (*pThunk != NULL)
+            {
+                LPVOID lpThunkData = NULL;
+                // 判断是Original还是Name
+                if(((*pThunk) & 0x80000000) > 0)
+                {
+                    lpThunkData = (LPVOID)((*pThunk) & 0xffff);
+                }
+                else
+                {
+                    lpThunkData = (LPVOID)((char*)lpDllBuff + (*pThunk) + 2);
+                }
+
+                // 不能递归调用自实现的LoadLibrary，自实现的LoadLibrary只支持路径加载dll
+                HMODULE hModule = ::LoadLibrary((char*)lpDllBuff + pImport->Name); 
+                LPVOID lpFunAddr = CMyPe::MyGetProcAddress(hModule, (LPCSTR)lpThunkData);
+
+                // 填到IAT中
+                *(DWORD*)((char*)lpDllBuff + pImport->FirstThunk) = (DWORD)lpFunAddr;
+
+                pThunk++;
+            }
+        }
+        pImport++;
+    }
+
+    // 修复重定位数据
+
+
+    return NULL;
 
 EXIT_PROC:
+    if (lpFileBuff != NULL)
+    {
+        ::UnmapViewOfFile(lpFileBuff);
+    }
+
     if (hFileMap != NULL)
     {
         ::CloseHandle(hFileMap);
@@ -899,6 +981,7 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
+    MY_LIST_ENTRY* pFirstNode = NULL;
 
     // 通过TEB获取模块信息表
     __asm {
@@ -915,6 +998,7 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
         popad;
     }
 
+    pFirstNode = pCurNode;
     if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
     {
         return NULL;
@@ -923,7 +1007,7 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
     // 遍历模块信息表，在模块的导出表中查找
     HMODULE hModule = NULL;
     MY_LIST_ENTRY* pTmp = NULL;
-    while (pCurNode != pPrevNode)
+    while (pPrevNode != pFirstNode)
     {
         hModule = pCurNode->hInstance;
         if (((DWORD)pfnAddr > (DWORD)hModule) &&
