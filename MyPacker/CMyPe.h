@@ -81,6 +81,7 @@ public:
     static int IsPeFile(void* pFileBuff);
     static int IsPeFile(const char* strFilePath);
     static int WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFilePath);
+    DWORD GetFileSize();
 
 public:
     // PE头部数据
@@ -139,8 +140,8 @@ private:
 
 public:
     // 功能方法
-    static DWORD  Rva2Fa(DWORD dwRva, LPVOID lpFileBuff);
-    static DWORD  GetAlignSize(DWORD dwDataSize, DWORD dwAlign);
+    static DWORD Rva2Fa(DWORD dwRva, LPVOID lpFileBuff);
+    static DWORD GetAlignSize(DWORD dwDataSize, DWORD dwAlign);
 
     // 节相关
     static LPVOID AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, 

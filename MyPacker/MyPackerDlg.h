@@ -4,6 +4,7 @@
 
 #pragma once
 #include "CMyPe.h"
+#include "CPaker.h"
 
 // CMyPackerDlg 对话框
 class CMyPackerDlg : public CDialogEx
@@ -35,8 +36,12 @@ protected:
 	virtual void OnOK();
 
 public:
+	CString m_csPackerFilePath;
+
+public:
 	afx_msg void OnBnClickedPacker();
 	afx_msg void OnBnClickedCancel();
 
-	CString m_csPackerFilePath;
+public:
+	void TextLoadLibrary();
 };

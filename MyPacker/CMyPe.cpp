@@ -350,6 +350,11 @@ int CMyPe::WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFile
     return FIlE_WRITE_SUC;
 }
 
+DWORD CMyPe::GetFileSize() 
+{
+    return m_dwFileSize;
+}
+
 
 LPVOID CMyPe::GetDosHeaderPointer() const
 {
@@ -512,12 +517,11 @@ DWORD CMyPe::GetAlignSize(DWORD dwDataSize, DWORD dwAlign)
     if (dwDataSize == 0)
         return 0;
 
-    DWORD dwMod = dwDataSize % dwAlign;
-    if (dwMod == 0)
+    if (dwDataSize % dwAlign == 0)
     {
         return dwDataSize;
     }
-    return (dwMod + 1) * dwAlign;
+    return (dwDataSize / dwAlign + 1) * dwAlign;
 }
 
 
@@ -808,7 +812,7 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 
 
 /*
-函数功能：自实现的LoadLibrary，未完成
+函数功能：自实现的LoadLibrary
 参数：
   lpModulePath：模块路径
 返回值：
@@ -823,6 +827,7 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     IMAGE_IMPORT_DESCRIPTOR ZeroImport = { 0 };
     DWORD dwRelocSize = 0;
     DWORD dwAddressOfEntryPoint = 0;
+    //typedef int(__stdcall *PFN_DLLMAIN)(HMODULE, int, int);
 
     if (lpModulePath == NULL)
         return NULL;
@@ -969,16 +974,20 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
 
     // 调用dllmain
     //dwAddressOfEntryPoint = pDll->GetAddressOfEntryPoint();
-    //__asm {
+    //PFN_DLLMAIN pFnDllMain = (PFN_DLLMAIN)((char*)lpDllBuff + dwAddressOfEntryPoint);
+    //pFnDllMain((HMODULE)lpDllBuff, DLL_PROCESS_ATTACH, NULL);
 
-    //    mov eax, dwAddressOfEntryPoint;
-    //    add eax, lpDllBuff;
-    //    push NULL;
-    //    push DLL_PROCESS_ATTACH;
-    //    push lpDllBuff;
-    //    call eax;
+    if (lpFileBuff != NULL) {
+        ::UnmapViewOfFile(lpFileBuff);
+    }
 
-    //}
+    if (hFileMap != NULL) {
+        ::CloseHandle(hFileMap);
+    }
+
+    if (hFile != INVALID_HANDLE_VALUE) {
+        ::CloseHandle(hFile);
+    }
 
     return lpDllBuff;
 

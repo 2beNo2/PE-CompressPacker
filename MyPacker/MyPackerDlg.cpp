@@ -163,20 +163,43 @@ void CMyPackerDlg::OnOK() {
 }
 
 
-void CMyPackerDlg::OnBnClickedPacker()
-{
-	// TODO: 在此添加控件通知处理程序代码
+void CMyPackerDlg::OnBnClickedPacker(){
+	//获取加壳程序的路径
 	UpdateData(TRUE);
 
-	AfxMessageBox(m_csPackerFilePath);
+	// 判断是否PE文件
+	if (CMyPe::IsPeFile(m_csPackerFilePath.GetBuffer()) == CMyPe::FIlE_OPEN_FAILD) {
+		AfxMessageBox(TEXT("File Open Faild!"));
+		return;
+	}
+	else if (CMyPe::IsPeFile(m_csPackerFilePath.GetBuffer()) == CMyPe::FILE_NOT_PE) {
+		AfxMessageBox(TEXT("File not PE Format"));
+		return;
+	}
+
+	//拼接加壳后PE的路径 
+	CString csDestPePath = m_csPackerFilePath.Left(m_csPackerFilePath.ReverseFind('.'));
+	csDestPePath += TEXT("_pack.exe");
+
+	//加壳
+	CPacker paker;
+	if (paker.Pack(m_csPackerFilePath.GetBuffer(), csDestPePath.GetBuffer())) {
+		AfxMessageBox(TEXT("Pack Ok!"));
+	}
+	else {
+		AfxMessageBox(TEXT("Pack Faild!"));
+	}
+}
+
+
+void CMyPackerDlg::OnBnClickedCancel(){
+
 
 }
 
 
-void CMyPackerDlg::OnBnClickedCancel()
-{
+void CMyPackerDlg::TextLoadLibrary() {
 	typedef void(*PFN)();
-
 	HMODULE hModule = (HMODULE)CMyPe::MyLoadLibrary("C:\\Users\\hc\\Desktop\\git\\TestDll.dll");
 	PFN pfn;
 	pfn = (PFN)CMyPe::MyGetProcAddress(hModule, "ShowMsg");
