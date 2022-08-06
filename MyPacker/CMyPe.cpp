@@ -821,6 +821,8 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     HANDLE hFileMap = NULL;
     LPVOID lpFileBuff = NULL;
     IMAGE_IMPORT_DESCRIPTOR ZeroImport = { 0 };
+    DWORD dwRelocSize = 0;
+    DWORD dwAddressOfEntryPoint = 0;
 
     if (lpModulePath == NULL)
         return NULL;
@@ -942,9 +944,43 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     }
 
     // 修复重定位数据
+    PIMAGE_BASE_RELOCATION pReloc = (PIMAGE_BASE_RELOCATION)pDll->GetRelocDirectoryPointer();
+    dwRelocSize = pDll->GetRelocDirectorySize();
+    while (dwRelocSize != 0)
+    {
+        DWORD dwRelocPageRva = pReloc->VirtualAddress;
+        DWORD dwSizeOfBlock = pReloc->SizeOfBlock;
+        DWORD dwItemCount = (dwSizeOfBlock - 8) / 2;
+        WORD* pItem = (WORD*)((char*)pReloc + 8);
+        for (DWORD i = 0; i < dwItemCount; ++i)
+        {
+            WORD wItem = pItem[i];
+            // 修复方式
+            if ((wItem >> 12) == IMAGE_REL_BASED_HIGHLOW)
+            {
+                char* pDstData = (char*)lpDllBuff + (wItem & 0xfff) + dwRelocPageRva;
+                *(DWORD*)pDstData = (DWORD)lpDllBuff - pDll->GetImageBase() + *(DWORD*)pDstData;
+            }
+        }
 
+        dwRelocSize = dwRelocSize - dwSizeOfBlock;
+        pReloc = (PIMAGE_BASE_RELOCATION)((char*)pReloc + dwSizeOfBlock);
+    }
 
-    return NULL;
+    // 调用dllmain
+    //dwAddressOfEntryPoint = pDll->GetAddressOfEntryPoint();
+    //__asm {
+
+    //    mov eax, dwAddressOfEntryPoint;
+    //    add eax, lpDllBuff;
+    //    push NULL;
+    //    push DLL_PROCESS_ATTACH;
+    //    push lpDllBuff;
+    //    call eax;
+
+    //}
+
+    return lpDllBuff;
 
 EXIT_PROC:
     if (lpFileBuff != NULL)
@@ -1084,7 +1120,7 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
     PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
     PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
 
-    // 获取导入表的位置
+    // 获取导出表的位置
     DWORD dwExportTableRva = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
     DWORD dwExportTableSize = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
     PIMAGE_EXPORT_DIRECTORY pExport = (PIMAGE_EXPORT_DIRECTORY)((char*)hInst + dwExportTableRva);

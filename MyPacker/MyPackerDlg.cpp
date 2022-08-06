@@ -175,6 +175,10 @@ void CMyPackerDlg::OnBnClickedPacker()
 
 void CMyPackerDlg::OnBnClickedCancel()
 {
-	// TODO: 在此添加控件通知处理程序代码
-	CMyPe::MyLoadLibrary("C:\\Users\\hc\\Desktop\\git\\TestDll.dll");
+	typedef void(*PFN)();
+
+	HMODULE hModule = (HMODULE)CMyPe::MyLoadLibrary("C:\\Users\\hc\\Desktop\\git\\TestDll.dll");
+	PFN pfn;
+	pfn = (PFN)CMyPe::MyGetProcAddress(hModule, "ShowMsg");
+	pfn();
 }
