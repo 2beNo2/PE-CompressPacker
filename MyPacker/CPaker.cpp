@@ -5,6 +5,9 @@
 
 CPacker::CPacker() {
     m_PE = nullptr;
+    m_pCompressData = NULL;
+    m_pShellCode = NULL;
+    m_pNewPeHeader = NULL;
 }
 
 
@@ -101,7 +104,8 @@ BOOL CPacker::DoCompressData() {
 }
 
 BOOL CPacker::GetShellCode() {
-    m_pShellCode = new BYTE[1];
+    m_pShellCode = new BYTE[0x100];
+    ::RtlZeroMemory(m_pShellCode, 0x100);
     *m_pShellCode = 0xcc;
     m_dwShellCodeSize = CMyPe::GetAlignSize(1, m_PE->GetFileAlignment());
 	return TRUE;
@@ -197,5 +201,20 @@ BOOL CPacker::WritePackerFile(const char* pDstPath) {
 
     //关闭文件
     CloseHandle(hFile);
+
+    // 释放资源
+    if (m_pCompressData != NULL) {
+        delete[] m_pCompressData;
+        m_pCompressData = NULL;
+    }
+    if (m_pShellCode != NULL) {
+        delete[] m_pShellCode;
+        m_pShellCode = NULL;
+    }
+    if (m_pNewPeHeader != NULL) {
+        delete[] m_pNewPeHeader;
+        m_pNewPeHeader = NULL;
+    }
+    
     return TRUE;
 }
