@@ -260,7 +260,10 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
             popad;
         }
         HMODULE hModule = MyGetModuleBase(dllName);
-        return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
+        if(hModule != NULL){
+            return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
+        }
+        return NULL;
     }
 
     return (void*)dwProcAddr;
