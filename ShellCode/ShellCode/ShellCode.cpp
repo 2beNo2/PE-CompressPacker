@@ -3,16 +3,134 @@
 
 #include "ShellCode.h"
 
+/*
+ShellCode:
+    -打开随机基址选项
+    -修改为release
+    -修改入口函数
+    -关闭GS选项
+    -关闭优化选项
+    -字符串改用字节数组
+    -API动态获取
+*/
+void Entry() {
+    typedef int (WINAPI* PFN_MESSAGEBOXA)(HWND, LPCSTR, LPCSTR, UINT);
+    typedef HMODULE(WINAPI * PFN_LOADLIBRARYA)(LPCSTR);
+
+    char szUser32[] = { 'u', 's', 'e', 'r', '3', '2', '.', 'd', 'l', 'l', '\0' }; 
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+
+    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
+
+    char szMessageBox[] = { 'M', 'e', 's', 's', 'a', 'g', 'e', 'B', 'o', 'x', 'A','\0' };
+    char szText[] = { 'T', 'e', 'x', 't', '\0' };
+
+    HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+    PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+    HMODULE hUser32 = pfnLoadLibraryA(szUser32);
+
+    PFN_MESSAGEBOXA pfn = (PFN_MESSAGEBOXA)MyGetProcAddress(hUser32, szMessageBox);
+    pfn(NULL, szText, szText, MB_OK);
+
+}
+
+
+void MyZeroMem(void* lpDstAddress, int dwSize) {
+    __asm {
+        cld;
+        mov edi, lpDstAddress;
+        mov ecx, dwSize;
+        mov eax, 0
+        rep stosb;
+    }
+}
+
+DWORD MyMemCmp(void* lpDstAddress, void* lpSrcAddress, int dwSize) {
+    DWORD dwRet = 0;
+    __asm {
+        cld;
+        mov edi, lpDstAddress;
+        mov esi, lpSrcAddress;
+        mov ecx, dwSize;
+        repz cmpsb;
+        jnz NOT_EQUAL;
+        mov eax, 0;
+        jmp EXIT_FUN;
+    NOT_EQUAL:
+        sub edi, esi;
+        mov eax, edi;
+    EXIT_FUN:
+        mov dwRet, eax
+    }
+    return dwRet;
+}
+
+void MyMemCopy(void* lpDstAddress, void* lpSrcAddress, int dwSize) {
+    __asm {
+        cld;
+        mov edi, lpDstAddress;
+        mov esi, lpSrcAddress;
+        mov eax, dwSize;
+        xor edx, edx;
+        mov ecx, 4;
+        div ecx;
+        mov ecx, eax;
+        rep movsd;
+        mov ecx, edx;
+        rep movsb;
+    }
+}
+
+int MyStrLen(const char* pSrc) {
+    int nLen = 0;
+    while (pSrc[nLen] != '\0') {
+        nLen++;
+    }
+    return nLen;
+}
+
+void Pascal2CStr(char* pDst, const char* pSrc, int nSize) {
+    int nIndex = 0;
+    for (int i = 0; i < nSize; i += 2) {
+        pDst[nIndex] = pSrc[i];
+        nIndex++;
+    }
+}
+
+void CStr2Pascal(char* pDst, const char* pSrc, int nSize) {
+    int nIndex = 0;
+    for (int i = 0; i < nSize; ++i) {
+        pDst[nIndex] = pSrc[i];
+        pDst[nIndex + 1] = '\0';
+        nIndex += 2;
+    }
+}
+
+BOOL CmpPascalStrWithCStr(const char* pPascalStr, const char* pCStr, int nCStrSize) {
+    int nIndex = 0;
+    for (int i = 0; i < nCStrSize; ++i) {
+        if (pCStr[i] != pPascalStr[nIndex] && pCStr[i] != (pPascalStr[nIndex] + 32)) {
+            return FALSE;
+        }
+        nIndex += 2;
+    }
+
+    if (pPascalStr[nIndex] != '\0') {
+        return FALSE;
+    }
+    return TRUE;
+}
+
 
 /*
-函数功能：通过模块名称/模块路径获取模块句柄
+函数功能：在TEB中，通过模块名称/模块路径获取模块句柄
 参数：
   lpModuleName：模块名称/模块路径
 返回值：
   成功返回模块句柄
-  失败返回NULL
+  失败返回NULL，模块信息表中可能没有要查找的模块
 */
-LPVOID MyGetModuleBase(LPCSTR lpModuleName) {
+HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
     if (lpModuleName == NULL)
         return NULL;
 
@@ -41,24 +159,18 @@ LPVOID MyGetModuleBase(LPCSTR lpModuleName) {
         return NULL;
     }
 
-    // 模块名转换成Pascal字符串
-    int nLen = MyStrLen(lpModuleName);
-
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;
     while (pPrevNode != pFirstNode) {
         // 比较模块名称
-        if (MyMemCmp((void*)lpModuleName, pCurNode->pUnicodeFileName, nLen) == 0 ) {
-            //free(pDst);
+        if (CmpPascalStrWithCStr((char*)pCurNode->pUnicodeFileName, lpModuleName, MyStrLen(lpModuleName))) {
             return pCurNode->hInstance;
         }
 
         // 比较模块路径
-        if (MyMemCmp((void*)lpModuleName, pCurNode->pUnicodePathName, nLen) == 0 ) {
-            //free(pDst);
+        if (CmpPascalStrWithCStr((char*)pCurNode->pUnicodePathName, lpModuleName, MyStrLen(lpModuleName))) {
             return pCurNode->hInstance;
         }
-
         pTmp = pPrevNode;
         pCurNode = pTmp;
         pPrevNode = pTmp->Flink;
@@ -66,38 +178,6 @@ LPVOID MyGetModuleBase(LPCSTR lpModuleName) {
     }
     return NULL;
 }
-
-
-HMODULE GetMainModule() {
-    HMODULE hMainModule = NULL;
-    __asm
-    {
-        mov eax, fs: [0x18] ; //teb
-        mov eax, [eax + 0x30]; //peb
-        mov eax, [eax + 0x0C]; //_PEB_LDR_DATA
-        mov eax, [eax + 0x0C]; //_LIST_ENTRY, 主模块
-        mov eax, dword ptr[eax + 0x18]; //kernel32基址
-        mov hMainModule, eax
-    }
-    return hMainModule;
-}
-
-HMODULE GetKernelBase() {
-    HMODULE hKer32 = NULL;
-    __asm
-    {
-        mov eax, fs: [0x18] ; //teb
-        mov eax, [eax + 0x30]; //peb
-        mov eax, [eax + 0x0C]; //_PEB_LDR_DATA
-        mov eax, [eax + 0x0C]; //_LIST_ENTRY, 主模块
-        mov eax, [eax]; //ntdll
-        mov eax, [eax]; //kernel32
-        mov eax, dword ptr[eax + 0x18]; //kernel32基址
-        mov hKer32, eax
-    }
-    return hKer32;
-}
-
 
 
 /*
@@ -118,8 +198,8 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
     PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
     PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
-    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + 
-                                            pFileHeader->SizeOfOptionalHeader);
+    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader +
+        pFileHeader->SizeOfOptionalHeader);
 
     // 获取导出表的位置
     DWORD dwExportTableRva = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
@@ -161,6 +241,7 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
     if ((dwProcAddr >= (DWORD)pExport) && (dwProcAddr < dwExportEnd)) {
         // 如果是导出转发，则需要递归查找，对应的地址保存的转发的dll名称和函数名称
         char dllName[MAXBYTE];
+        MyZeroMem(dllName, MAXBYTE);
         __asm {
             pushad;
             mov esi, dwProcAddr;
@@ -178,31 +259,9 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
             mov dwProcAddr, esi;
             popad;
         }
-        HMODULE hModule = ::LoadLibrary(dllName);  // 此处可优化为不使用API
+        HMODULE hModule = MyGetModuleBase(dllName);
         return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
     }
 
     return (void*)dwProcAddr;
 }
-
-
-/*
-ShellCode:
-    -打开随机基址选项
-    -修改为release
-    -修改入口函数
-    -关闭GS选项
-    -关闭优化选项
-    -字符串改用字节数组
-    -API动态获取
-*/
-void Entry() {
-    typedef int (WINAPI* PFN_MESSAGEBOXA)(HWND, LPCSTR, LPCSTR, UINT);
-    char szUser32[] = { 'u', 's', 'e', 'r', '3', '2', '.', 'd', 'l', 'l', '\0' }; 
-    char szMessageBox[] = { 'M', 'e', 's', 's', 'a', 'g', 'e', 'B', 'o', 'x', '\0' };
-    char szText[] = { 'T', 'e', 'x', 't', '\0' };
-    HMODULE hUser32 = GetKernelBase();
-    PFN_MESSAGEBOXA pfn = (PFN_MESSAGEBOXA)MyGetProcAddress(hUser32, szMessageBox);
-    pfn(NULL, szText, szText, MB_OK);
-}
-
