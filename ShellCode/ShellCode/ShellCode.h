@@ -42,6 +42,7 @@ struct MY_LIST_ENTRY {
     int* pUnicodeFileName;  //0x30
 };
 
+typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
 
 void  MyZeroMem(void* lpDstAddress, int dwSize);
 DWORD MyMemCmp(void* lpDstAddress, void* lpSrcAddress, int dwSize);

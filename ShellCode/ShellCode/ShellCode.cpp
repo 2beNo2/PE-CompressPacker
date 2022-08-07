@@ -13,22 +13,18 @@ ShellCode:
     -字符串改用字节数组
     -API动态获取
 */
-void Entry() {
-    typedef int (WINAPI* PFN_MESSAGEBOXA)(HWND, LPCSTR, LPCSTR, UINT);
-    typedef HMODULE(WINAPI * PFN_LOADLIBRARYA)(LPCSTR);
-
+void Entry() { 
     char szUser32[] = { 'u', 's', 'e', 'r', '3', '2', '.', 'd', 'l', 'l', '\0' }; 
     char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
-
     char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
-
-    char szMessageBox[] = { 'M', 'e', 's', 's', 'a', 'g', 'e', 'B', 'o', 'x', 'A','\0' };
-    char szText[] = { 'T', 'e', 'x', 't', '\0' };
 
     HMODULE hKernel32 = MyGetModuleBase(szKernel32);
     PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
-    HMODULE hUser32 = pfnLoadLibraryA(szUser32);
 
+    char szMessageBox[] = { 'M', 'e', 's', 's', 'a', 'g', 'e', 'B', 'o', 'x', 'A','\0' };
+    char szText[] = { 'T', 'e', 'x', 't', '\0' };
+    typedef int (WINAPI* PFN_MESSAGEBOXA)(HWND, LPCSTR, LPCSTR, UINT);
+    HMODULE hUser32 = pfnLoadLibraryA(szUser32);
     PFN_MESSAGEBOXA pfn = (PFN_MESSAGEBOXA)MyGetProcAddress(hUser32, szMessageBox);
     pfn(NULL, szText, szText, MB_OK);
 
@@ -190,6 +186,9 @@ HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
   失败返回NULL
 */
 LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
+
     if (hInst == NULL || lpProcName == NULL)
         return NULL;
 
@@ -259,11 +258,14 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
             mov dwProcAddr, esi;
             popad;
         }
+
         HMODULE hModule = MyGetModuleBase(dllName);
-        if(hModule != NULL){
-            return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
+        if (hModule == NULL) {
+            HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+            PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+            hModule = pfnLoadLibraryA(dllName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
         }
-        return NULL;
+        return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
     }
 
     return (void*)dwProcAddr;
