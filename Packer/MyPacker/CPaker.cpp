@@ -86,16 +86,17 @@ BOOL CPacker::DoCompressData() {
     }
 
     // 构造压缩数据节
-    m_dwCompressDataSize = CMyPe::GetAlignSize(dwComDataSize, m_PE->GetFileAlignment());
-    m_pCompressData = new BYTE[m_dwCompressDataSize];
+    m_dwComDataSize = dwComDataSize;
+    m_dwComDataAlignSize = CMyPe::GetAlignSize(m_dwComDataSize, m_PE->GetFileAlignment());
+    m_pCompressData = new BYTE[m_dwComDataAlignSize];
     if (m_pCompressData == NULL) {
         delete[] pComPressDataBuf;
         CloseCompressor(hCompressor);
         return FALSE;
     }
 
-    ::RtlZeroMemory(m_pCompressData, m_dwCompressDataSize);
-    MyMemCopy(m_pCompressData, pComPressDataBuf, dwComDataSize);
+    ::RtlZeroMemory(m_pCompressData, m_dwComDataAlignSize);
+    MyMemCopy(m_pCompressData, pComPressDataBuf, m_dwComDataSize);
 
     // 清理资源
     delete[] pComPressDataBuf;
@@ -134,10 +135,13 @@ BOOL CPacker::RebuildSection() {
     // -被压缩数据节
     MyMemCopy(m_NewSecHdrs[SHI_COM].Name, (LPVOID)".bss", MyStrLen(".bss"));
     m_NewSecHdrs[SHI_COM].VirtualAddress = m_NewSecHdrs[SHI_CODE].VirtualAddress + m_NewSecHdrs[SHI_CODE].Misc.VirtualSize;
-    m_NewSecHdrs[SHI_COM].Misc.VirtualSize = CMyPe::GetAlignSize(m_dwCompressDataSize, m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_COM].Misc.VirtualSize = CMyPe::GetAlignSize(m_dwComDataAlignSize, m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_COM].PointerToRawData = m_NewSecHdrs[SHI_CODE].PointerToRawData + m_NewSecHdrs[SHI_CODE].SizeOfRawData;
-    m_NewSecHdrs[SHI_COM].SizeOfRawData = m_dwCompressDataSize;
+    m_NewSecHdrs[SHI_COM].SizeOfRawData = m_dwComDataAlignSize;
     m_NewSecHdrs[SHI_COM].Characteristics = IMAGE_SCN_MEM_READ;
+    m_NewSecHdrs[SHI_COM].PointerToLinenumbers = m_dwComDataSize; // 压缩数据的大小
+    m_NewSecHdrs[SHI_COM].PointerToRelocations = m_PE->GetFileSize(); // 被压缩数据的大小
+
 
 	return TRUE;
 }
@@ -194,7 +198,7 @@ BOOL CPacker::WritePackerFile(const char* pDstPath) {
     }
 
     //压缩数据节
-    if (!WriteFile(hFile, m_pCompressData, m_dwCompressDataSize, &dwBytesToWrite, NULL)) {
+    if (!WriteFile(hFile, m_pCompressData, m_dwComDataAlignSize, &dwBytesToWrite, NULL)) {
         CloseHandle(hFile);
         return FALSE;
     }

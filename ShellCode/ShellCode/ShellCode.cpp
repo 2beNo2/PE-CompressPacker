@@ -3,6 +3,7 @@
 
 #include "ShellCode.h"
 
+
 /*
 ShellCode:
     -打开随机基址选项
@@ -16,22 +17,111 @@ ShellCode:
 void Entry() { 
     char szUser32[] = { 'u', 's', 'e', 'r', '3', '2', '.', 'd', 'l', 'l', '\0' }; 
     char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szCabinet[] = { 'C', 'a', 'b', 'i', 'n', 'e', 't', '.', 'd', 'l', 'l', '\0' };
+
     char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
+    char szVirtualAlloc[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'A', 'l', 'l', 'o', 'c', '\0' };
+    char szCreateDecompressor[] = { 'C', 'r', 'e', 'a', 't', 'e', 'D', 'e', 'c', 'o', 'm', 'p', 'r', 'e', 's', 's', 'o', 'r', '\0' };
 
     HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+    HMODULE hUser32 = MyGetModuleBase(szUser32);
+    HMODULE hCabinet = MyGetModuleBase(szCabinet);
     PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+    PFN_VIRTUALALLOC pfnVirtualAlloc = (PFN_VIRTUALALLOC)MyGetProcAddress(hKernel32, szVirtualAlloc);
+    PFN_CREATEDECOMPRESSOR pfn = (PFN_CREATEDECOMPRESSOR)MyGetProcAddress(hCabinet, szCreateDecompressor);
+
+
+    // 当前程序的PE格式解析
+    HMODULE hMain = MyGetModuleBase(NULL);
+    PIMAGE_DOS_HEADER pPackerDosHeader = (PIMAGE_DOS_HEADER)hMain;
+    PIMAGE_NT_HEADERS pPackerNtHeader = (PIMAGE_NT_HEADERS)((char*)pPackerDosHeader + pPackerDosHeader->e_lfanew);
+    PIMAGE_FILE_HEADER pPackerFileHeader = (PIMAGE_FILE_HEADER)(&pPackerNtHeader->FileHeader);
+    PIMAGE_OPTIONAL_HEADER pPackerOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pPackerNtHeader->OptionalHeader);
+    PIMAGE_SECTION_HEADER pPackerSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pPackerOptionHeader + pPackerFileHeader->SizeOfOptionalHeader);
 
     // 解压数据
+    DWORD dwComDataSize = pPackerSectionHeader[SHI_COM].PointerToLinenumbers; // 压缩数据的大小
+    PBYTE pComDataBuff = (PBYTE)((char*)pPackerDosHeader + pPackerSectionHeader[SHI_COM].PointerToRawData); // 压缩数据的内存地址
+    DWORD dwDeComDataSize = pPackerSectionHeader[SHI_COM].PointerToRelocations; // 解压后数据的大小
+    LPVOID lpDecomDataBuff = pfnVirtualAlloc(NULL, dwDeComDataSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE); //  解压后数据的内存地址
+    
+    /*
+    
+    //  Create an XpressHuff decompressor.
+        Success = CreateDecompressor(
+            COMPRESS_ALGORITHM_XPRESS_HUFF, //  Compression Algorithm
+            NULL,                           //  Optional allocation routine
+            &Decompressor);                 //  Handle
+
+        if (!Success)
+        {
+            wprintf(L"Cannot create a decompressor: %d.\n", GetLastError());
+            goto done;
+        }
+
+        //  Query decompressed buffer size.
+        Success = Decompress(
+            Decompressor,                //  Compressor Handle
+            CompressedBuffer,            //  Compressed data
+            InputFileSize,               //  Compressed data size
+            NULL,                        //  Buffer set to NULL
+            0,                           //  Buffer size set to 0
+            &DecompressedBufferSize);    //  Decompressed Data size
+
+        //  Allocate memory for decompressed buffer.
+        if (!Success)
+        {
+            DWORD ErrorCode = GetLastError();
+
+            // Note that the original size returned by the function is extracted 
+            // from the buffer itself and should be treated as untrusted and tested
+            // against reasonable limits.
+            if (ErrorCode != ERROR_INSUFFICIENT_BUFFER) 
+            {
+                wprintf(L"Cannot decompress data: %d.\n",ErrorCode);
+                goto done;
+            }
+
+            DecompressedBuffer = (PBYTE)malloc(DecompressedBufferSize);
+            if (!DecompressedBuffer)
+            {
+                wprintf(L"Cannot allocate memory for decompressed buffer.\n");
+                goto done;
+            }           
+        }
+        
+        StartTime = GetTickCount64();
+
+        //  Decompress data and write data to DecompressedBuffer.
+        Success = Decompress(
+            Decompressor,               //  Decompressor handle
+            CompressedBuffer,           //  Compressed data
+            InputFileSize,              //  Compressed data size
+            DecompressedBuffer,         //  Decompressed buffer
+            DecompressedBufferSize,     //  Decompressed buffer size
+            &DecompressedDataSize);     //  Decompressed data size
+
+        if (!Success)
+        {
+            wprintf(L"Cannot decompress data: %d.\n", GetLastError());
+            goto done;
+        }
+    */
 
     // 拉伸PE
 
+
     // 修复IAT
+
 
     // reloc
 
+
     // 是否存在TLS
 
+
     // 跳到入口点
+
 
 }
 
@@ -130,10 +220,11 @@ BOOL CmpPascalStrWithCStr(const char* pPascalStr, const char* pCStr, int nCStrSi
 返回值：
   成功返回模块句柄
   失败返回NULL，模块信息表中可能没有要查找的模块
+注意：
+  当传入参数为NULL时，表示获取主模块的句柄
 */
 HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
-    if (lpModuleName == NULL)
-        return NULL;
+
 
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
@@ -159,6 +250,9 @@ HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
     if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL) {
         return NULL;
     }
+
+    if (lpModuleName == NULL)
+        return pCurNode->hInstance;
 
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;

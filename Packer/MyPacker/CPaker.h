@@ -20,7 +20,8 @@ private:
     // 压缩操作相关
     BOOL  DoCompressData();
     PBYTE m_pCompressData;      // 压缩数据的内存地址
-    DWORD m_dwCompressDataSize; // 压缩数据与文件对齐值对齐后大小
+    DWORD m_dwComDataAlignSize; // 压缩数据与文件对齐值对齐后大小
+    DWORD m_dwComDataSize;      // 压缩数据的真实大小
 
 private:
     // 壳代码相关

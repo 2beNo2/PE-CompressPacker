@@ -734,18 +734,17 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 
 
 /*
-函数功能：通过模块名称/模块路径获取模块句柄
+函数功能：在TEB中，通过模块名称/模块路径获取模块句柄
 参数：
   lpModuleName：模块名称/模块路径
 返回值：
   成功返回模块句柄
-  失败返回NULL
+  失败返回NULL，模块信息表中可能没有要查找的模块
+注意：
+  当传入参数为NULL时，表示获取主模块的句柄
 */
 LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 {
-    if (lpModuleName == NULL)
-        return NULL;
-
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
@@ -770,6 +769,9 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
     if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL) {
         return NULL;
     }
+
+    if (lpModuleName == NULL)
+        return pCurNode->hInstance;
 
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;

@@ -42,7 +42,19 @@ struct MY_LIST_ENTRY {
     int* pUnicodeFileName;  //0x30
 };
 
+enum SecHdrIdx {
+    SHI_SPACE,
+    SHI_CODE,
+    SHI_COM,
+    SHI_COUT
+};
+
 typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
+typedef LPVOID(WINAPI* PFN_VIRTUALALLOC)(LPVOID, SIZE_T, DWORD, DWORD);
+typedef BOOL(WINAPI * PFN_CREATEDECOMPRESSOR)(DWORD, LPVOID, LPVOID);
+
+
+
 
 void  MyZeroMem(void* lpDstAddress, int dwSize);
 DWORD MyMemCmp(void* lpDstAddress, void* lpSrcAddress, int dwSize);
