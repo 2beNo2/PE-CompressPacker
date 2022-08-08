@@ -21,12 +21,17 @@ void Entry() {
     HMODULE hKernel32 = MyGetModuleBase(szKernel32);
     PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
 
-    char szMessageBox[] = { 'M', 'e', 's', 's', 'a', 'g', 'e', 'B', 'o', 'x', 'A','\0' };
-    char szText[] = { 'T', 'e', 'x', 't', '\0' };
-    typedef int (WINAPI* PFN_MESSAGEBOXA)(HWND, LPCSTR, LPCSTR, UINT);
-    HMODULE hUser32 = pfnLoadLibraryA(szUser32);
-    PFN_MESSAGEBOXA pfn = (PFN_MESSAGEBOXA)MyGetProcAddress(hUser32, szMessageBox);
-    pfn(NULL, szText, szText, MB_OK);
+    // 解压数据
+
+    // 拉伸PE
+
+    // 修复IAT
+
+    // reloc
+
+    // 是否存在TLS
+
+    // 跳到入口点
 
 }
 
