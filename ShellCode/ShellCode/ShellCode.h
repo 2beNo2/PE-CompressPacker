@@ -54,7 +54,12 @@ typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
 typedef LPVOID(WINAPI* PFN_VIRTUALALLOC)(LPVOID, SIZE_T, DWORD, DWORD);
 typedef BOOL(WINAPI* PFN_CREATEDECOMPRESSOR)(DWORD, PCOMPRESS_ALLOCATION_ROUTINES, PDECOMPRESSOR_HANDLE);
 typedef BOOL(WINAPI * PFN_DECOMPRESS)(DECOMPRESSOR_HANDLE, LPCVOID, SIZE_T, PVOID, SIZE_T, PSIZE_T);
-
+typedef BOOL(WINAPI* PFN_VIRTUALPROTECT)(
+    _In_  LPVOID lpAddress,
+    _In_  SIZE_T dwSize,
+    _In_  DWORD flNewProtect,
+    _Out_ PDWORD lpflOldProtect
+    );
 
 
 void  MyZeroMem(void* lpDstAddress, int dwSize);
@@ -70,3 +75,5 @@ BOOL CmpPascalStrWithCStr(const char* pPascalStr, const char* pCStr, int nCStrSi
 HMODULE MyGetModuleBase(LPCSTR lpModuleName);
 LPVOID  MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName);
 void    StretchPE(LPVOID lpDst, LPVOID lpDosHeader);
+void RepairIatTable(LPVOID lpFileBuff);
+void RepairReloc(LPVOID lpFileBuff);

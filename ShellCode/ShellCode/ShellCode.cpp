@@ -90,6 +90,8 @@ void RepairIatTable(LPVOID lpFileBuff) {
 }
 
 void StretchPE(LPVOID lpDst, LPVOID lpFileBuff) {
+    char szVirtualProtect[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'P', 'r', 'o', 't', 'e', 'c', 't', '\0' };
+
     // PE格式解析
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
@@ -97,6 +99,7 @@ void StretchPE(LPVOID lpDst, LPVOID lpFileBuff) {
     PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
     PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
 
+    // 修改内存权限
     // 拷贝PE头
     MyMemCopy(lpDst, lpFileBuff, pOptionHeader->SizeOfHeaders);
 
@@ -259,8 +262,8 @@ HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
     }
 
     HMODULE hKernel32 = MyGetModuleBase(szKernel32);
-    PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
-    return  pfnLoadLibraryA(lpModuleName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
+    PFN_LOADLIBRARYA pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+    return pfnLoadLibraryA(lpModuleName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
 }
 
 
@@ -347,6 +350,5 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
         HMODULE hModule = MyGetModuleBase(dllName);
         return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
     }
-
-    return (void*)dwProcAddr;
+    return (LPVOID)dwProcAddr;
 }
