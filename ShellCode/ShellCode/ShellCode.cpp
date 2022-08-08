@@ -2,7 +2,7 @@
 //
 
 #include "ShellCode.h"
-
+#include <compressapi.h>
 
 /*
 ShellCode:
@@ -15,21 +15,25 @@ ShellCode:
     -API动态获取
 */
 void Entry() { 
+    // dll
     char szUser32[] = { 'u', 's', 'e', 'r', '3', '2', '.', 'd', 'l', 'l', '\0' }; 
     char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
     char szCabinet[] = { 'C', 'a', 'b', 'i', 'n', 'e', 't', '.', 'd', 'l', 'l', '\0' };
 
+    // api
     char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
     char szVirtualAlloc[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'A', 'l', 'l', 'o', 'c', '\0' };
     char szCreateDecompressor[] = { 'C', 'r', 'e', 'a', 't', 'e', 'D', 'e', 'c', 'o', 'm', 'p', 'r', 'e', 's', 's', 'o', 'r', '\0' };
+    char szDecompress[] = { 'D', 'e', 'c', 'o', 'm', 'p', 'r', 'e', 's', 's', '\0' };
 
     HMODULE hKernel32 = MyGetModuleBase(szKernel32);
     HMODULE hUser32 = MyGetModuleBase(szUser32);
     HMODULE hCabinet = MyGetModuleBase(szCabinet);
     PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
     PFN_VIRTUALALLOC pfnVirtualAlloc = (PFN_VIRTUALALLOC)MyGetProcAddress(hKernel32, szVirtualAlloc);
-    PFN_CREATEDECOMPRESSOR pfn = (PFN_CREATEDECOMPRESSOR)MyGetProcAddress(hCabinet, szCreateDecompressor);
-
+    PFN_CREATEDECOMPRESSOR pfnCreateDecompressor = (PFN_CREATEDECOMPRESSOR)MyGetProcAddress(hCabinet, szCreateDecompressor);
+    PFN_DECOMPRESS pfnDecompress = (PFN_DECOMPRESS)MyGetProcAddress(hCabinet, szDecompress);
+    
 
     // 当前程序的PE格式解析
     HMODULE hMain = MyGetModuleBase(NULL);
@@ -45,71 +49,26 @@ void Entry() {
     DWORD dwDeComDataSize = pPackerSectionHeader[SHI_COM].PointerToRelocations; // 解压后数据的大小
     LPVOID lpDecomDataBuff = pfnVirtualAlloc(NULL, dwDeComDataSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE); //  解压后数据的内存地址
     
-    /*
-    
-    //  Create an XpressHuff decompressor.
-        Success = CreateDecompressor(
-            COMPRESS_ALGORITHM_XPRESS_HUFF, //  Compression Algorithm
-            NULL,                           //  Optional allocation routine
-            &Decompressor);                 //  Handle
+    HANDLE hDeCompressor;
+    BOOL bSuccess = pfnCreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &hDeCompressor);
+    if (!bSuccess) {
+        return;
+    }
 
-        if (!Success)
-        {
-            wprintf(L"Cannot create a decompressor: %d.\n", GetLastError());
-            goto done;
-        }
-
-        //  Query decompressed buffer size.
-        Success = Decompress(
-            Decompressor,                //  Compressor Handle
-            CompressedBuffer,            //  Compressed data
-            InputFileSize,               //  Compressed data size
-            NULL,                        //  Buffer set to NULL
-            0,                           //  Buffer size set to 0
-            &DecompressedBufferSize);    //  Decompressed Data size
-
-        //  Allocate memory for decompressed buffer.
-        if (!Success)
-        {
-            DWORD ErrorCode = GetLastError();
-
-            // Note that the original size returned by the function is extracted 
-            // from the buffer itself and should be treated as untrusted and tested
-            // against reasonable limits.
-            if (ErrorCode != ERROR_INSUFFICIENT_BUFFER) 
-            {
-                wprintf(L"Cannot decompress data: %d.\n",ErrorCode);
-                goto done;
-            }
-
-            DecompressedBuffer = (PBYTE)malloc(DecompressedBufferSize);
-            if (!DecompressedBuffer)
-            {
-                wprintf(L"Cannot allocate memory for decompressed buffer.\n");
-                goto done;
-            }           
-        }
-        
-        StartTime = GetTickCount64();
-
-        //  Decompress data and write data to DecompressedBuffer.
-        Success = Decompress(
-            Decompressor,               //  Decompressor handle
-            CompressedBuffer,           //  Compressed data
-            InputFileSize,              //  Compressed data size
-            DecompressedBuffer,         //  Decompressed buffer
-            DecompressedBufferSize,     //  Decompressed buffer size
-            &DecompressedDataSize);     //  Decompressed data size
-
-        if (!Success)
-        {
-            wprintf(L"Cannot decompress data: %d.\n", GetLastError());
-            goto done;
-        }
-    */
+    DWORD dwDecompressedDataSize = 0;
+    bSuccess = pfnDecompress(
+        hDeCompressor,              //  Compressor Handle
+        pComDataBuff,               //  Compressed data
+        dwComDataSize,              //  Compressed data size
+        lpDecomDataBuff,            //  Decompressed buffer
+        dwDeComDataSize,            //  Decompressed buffer size
+        &dwDecompressedDataSize);   //  Decompressed data size
+    if (!bSuccess) {
+        return;
+    }
 
     // 拉伸PE
-
+    StretchPE((char*)pPackerDosHeader + pPackerSectionHeader[SHI_SPACE].VirtualAddress, lpDecomDataBuff);
 
     // 修复IAT
 
@@ -123,6 +82,32 @@ void Entry() {
     // 跳到入口点
 
 
+}
+
+
+void RepairIatTable(LPVOID lpFileBuff) {
+
+}
+
+void StretchPE(LPVOID lpDst, LPVOID lpFileBuff) {
+    // PE格式解析
+    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
+    PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
+    PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
+    PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
+    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
+
+    // 拷贝PE头
+    MyMemCopy(lpDst, lpFileBuff, pOptionHeader->SizeOfHeaders);
+
+    // 拷贝节表
+    for (int i = 0; i < pFileHeader->NumberOfSections; ++i) {
+        if (pSectionHeader->SizeOfRawData != 0) {
+            MyMemCopy((char*)lpDst + pSectionHeader->VirtualAddress, 
+                (char*)lpFileBuff + pSectionHeader->PointerToRawData, pSectionHeader->SizeOfRawData);
+        }
+        pSectionHeader++;
+    }
 }
 
 
