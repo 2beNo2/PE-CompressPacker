@@ -150,10 +150,10 @@ public:
     // 导出表相关
     static void MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName);  // 通过模块句柄获取模块名称
     static void MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath);  // 通过模块句柄获取模块路径
-    static LPVOID MyGetModuleBase(LPCSTR lpModuleName);               // 通过模块名称/路径获取模块句柄
-    static LPVOID MyLoadLibrary(LPCSTR lpModulePath);                 // 自实现的LoadLibrary，只支持传入模块路径
-    static LPVOID MyGetProcFunName(LPVOID pfnAddr);                   // 通过函数地址获取函数名称/序号
-    static LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName); // 自实现的GetProcAddress
+    static HMODULE MyGetModuleBase(LPCSTR lpModuleName);               // 通过模块名称/路径获取模块句柄
+    static LPVOID  MyLoadLibrary(LPCSTR lpModulePath);                 // 自实现的LoadLibrary，只支持传入模块路径
+    static LPVOID  MyGetProcFunName(LPVOID pfnAddr);                   // 通过函数地址获取函数名称/序号
+    static LPVOID  MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName); // 自实现的GetProcAddress
 
     // 导入表相关
     static LPVOID MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR lpProcName); // 增加导入表

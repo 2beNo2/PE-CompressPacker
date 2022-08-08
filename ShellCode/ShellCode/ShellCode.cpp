@@ -2,7 +2,7 @@
 //
 
 #include "ShellCode.h"
-#include <compressapi.h>
+
 
 /*
 ShellCode:
@@ -49,7 +49,7 @@ void Entry() {
     DWORD dwDeComDataSize = pPackerSectionHeader[SHI_COM].PointerToRelocations; // 解压后数据的大小
     LPVOID lpDecomDataBuff = pfnVirtualAlloc(NULL, dwDeComDataSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE); //  解压后数据的内存地址
     
-    HANDLE hDeCompressor;
+    DECOMPRESSOR_HANDLE hDeCompressor;
     BOOL bSuccess = pfnCreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &hDeCompressor);
     if (!bSuccess) {
         return;
@@ -209,7 +209,8 @@ BOOL CmpPascalStrWithCStr(const char* pPascalStr, const char* pCStr, int nCStrSi
   当传入参数为NULL时，表示获取主模块的句柄
 */
 HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
-
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
 
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
@@ -256,7 +257,10 @@ HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
         pPrevNode = pTmp->Flink;
         pNextNode = pTmp->Blink;
     }
-    return NULL;
+
+    HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+    PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+    return  pfnLoadLibraryA(lpModuleName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
 }
 
 
@@ -270,9 +274,6 @@ HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
   失败返回NULL
 */
 LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
-    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
-    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
-
     if (hInst == NULL || lpProcName == NULL)
         return NULL;
 
@@ -344,11 +345,6 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
         }
 
         HMODULE hModule = MyGetModuleBase(dllName);
-        if (hModule == NULL) {
-            HMODULE hKernel32 = MyGetModuleBase(szKernel32);
-            PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
-            hModule = pfnLoadLibraryA(dllName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
-        }
         return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
     }
 

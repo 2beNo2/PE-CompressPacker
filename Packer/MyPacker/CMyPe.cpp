@@ -743,8 +743,12 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 注意：
   当传入参数为NULL时，表示获取主模块的句柄
 */
-LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
+HMODULE CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
 {
+    typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
+
     MY_LIST_ENTRY* pCurNode = NULL;
     MY_LIST_ENTRY* pPrevNode = NULL;
     MY_LIST_ENTRY* pNextNode = NULL;
@@ -790,7 +794,10 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
         pPrevNode = pTmp->Flink;
         pNextNode = pTmp->Blink;
     }
-    return NULL;
+
+    HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+    PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+    return  pfnLoadLibraryA(lpModuleName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
 }
 
 
@@ -810,7 +817,10 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     IMAGE_IMPORT_DESCRIPTOR ZeroImport = { 0 };
     DWORD dwRelocSize = 0;
     DWORD dwAddressOfEntryPoint = 0;
-    //typedef int(__stdcall *PFN_DLLMAIN)(HMODULE, int, int);
+
+    typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
 
     if (lpModulePath == NULL)
         return NULL;
@@ -918,8 +928,10 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
                     lpThunkData = (LPVOID)((char*)lpDllBuff + (*pThunk) + 2);
                 }
 
-                // 不能递归调用自实现的LoadLibrary，自实现的LoadLibrary只支持路径加载dll
-                HMODULE hModule = ::LoadLibrary((char*)lpDllBuff + pImport->Name); 
+                // 获取函数地址
+                HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+                PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+                HMODULE hModule = pfnLoadLibraryA((char*)lpDllBuff + pImport->Name); 
                 LPVOID lpFunAddr = CMyPe::MyGetProcAddress(hModule, (LPCSTR)lpThunkData);
 
                 // 填到IAT中
@@ -1102,10 +1114,6 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
 */
 LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
 {
-    typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
-    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
-    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
-
     if (hInst == NULL || lpProcName == NULL)
         return NULL;
 
@@ -1177,11 +1185,6 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
         }
 
         HMODULE hModule = (HMODULE)MyGetModuleBase(dllName);
-        if (hModule == NULL) {
-            HMODULE hKernel32 = (HMODULE)MyGetModuleBase(szKernel32);
-            PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
-            hModule = pfnLoadLibraryA(dllName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
-        }
         return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
     }
 

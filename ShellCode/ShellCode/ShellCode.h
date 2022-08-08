@@ -1,5 +1,6 @@
 #pragma once
 #include "windows.h"
+#include <compressapi.h>
 
 /*
 模块信息表{
@@ -51,8 +52,8 @@ enum SecHdrIdx {
 
 typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
 typedef LPVOID(WINAPI* PFN_VIRTUALALLOC)(LPVOID, SIZE_T, DWORD, DWORD);
-typedef BOOL(WINAPI * PFN_CREATEDECOMPRESSOR)(DWORD, LPVOID, LPVOID);
-typedef BOOL(WINAPI * PFN_DECOMPRESS)(HANDLE, LPCVOID, SIZE_T, PVOID, SIZE_T, PSIZE_T);
+typedef BOOL(WINAPI* PFN_CREATEDECOMPRESSOR)(DWORD, PCOMPRESS_ALLOCATION_ROUTINES, PDECOMPRESSOR_HANDLE);
+typedef BOOL(WINAPI * PFN_DECOMPRESS)(DECOMPRESSOR_HANDLE, LPCVOID, SIZE_T, PVOID, SIZE_T, PSIZE_T);
 
 
 
@@ -67,6 +68,5 @@ BOOL CmpPascalStrWithCStr(const char* pPascalStr, const char* pCStr, int nCStrSi
 
 
 HMODULE MyGetModuleBase(LPCSTR lpModuleName);
-LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName);
-
-void StretchPE(LPVOID lpDst, LPVOID lpDosHeader);
+LPVOID  MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName);
+void    StretchPE(LPVOID lpDst, LPVOID lpDosHeader);
