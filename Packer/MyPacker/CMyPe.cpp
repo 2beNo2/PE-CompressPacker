@@ -767,46 +767,27 @@ LPVOID CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
     }
 
     pFirstNode = pCurNode;
-    if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL)
-    {
+    if (pCurNode == NULL || pPrevNode == NULL || pNextNode == NULL) {
         return NULL;
     }
 
-    // 模块名转换成Pascal字符串
-    int nLen = MyStrLen(lpModuleName);
-    char* pDst = (char*)malloc(nLen * 2);
-    ::RtlZeroMemory(pDst, nLen * 2);
-    CStr2Pascal(pDst, lpModuleName, nLen);
-
     // 遍历模块信息表
     MY_LIST_ENTRY* pTmp = NULL;
-    while (pPrevNode != pFirstNode)
-    {
+    while (pPrevNode != pFirstNode) {
         // 比较模块名称
-        if (MyMemCmp(pDst, pCurNode->pUnicodeFileName, nLen * 2) == 0 && (nLen * 2) == pCurNode->sLengthOfFile)
-        {
-            free(pDst);
+        if (CmpPascalStrWithCStr((char*)pCurNode->pUnicodeFileName, lpModuleName, MyStrLen(lpModuleName))) {
             return pCurNode->hInstance;
         }
 
         // 比较模块路径
-        if (MyMemCmp(pDst, pCurNode->pUnicodePathName, nLen * 2) == 0 && (nLen * 2) == pCurNode->sLengthOfPath)
-        {
-            free(pDst);
+        if (CmpPascalStrWithCStr((char*)pCurNode->pUnicodePathName, lpModuleName, MyStrLen(lpModuleName))) {
             return pCurNode->hInstance;
         }
-
         pTmp = pPrevNode;
         pCurNode = pTmp;
         pPrevNode = pTmp->Flink;
         pNextNode = pTmp->Blink;
     }
-
-    if (pDst != NULL)
-    {
-        free(pDst);
-    }
-
     return NULL;
 }
 
@@ -1119,6 +1100,10 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
 */
 LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
 {
+    typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
+
     if (hInst == NULL || lpProcName == NULL)
         return NULL;
 
@@ -1127,7 +1112,8 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
     PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
     PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
-    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
+    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader +
+        pFileHeader->SizeOfOptionalHeader);
 
     // 获取导出表的位置
     DWORD dwExportTableRva = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
@@ -1141,41 +1127,35 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
     DWORD dwAddressOfNameOrdinalsRva = pExport->AddressOfNameOrdinals;
     DWORD* pAddressOfFunctions = (DWORD*)(dwAddressOfFunctionsRva + (char*)hInst);
     DWORD* pAddressOfNames = (DWORD*)(dwAddressOfNamesRva + (char*)hInst);
-    WORD*  pAddressOfNameOrdinals = (WORD*)(dwAddressOfNameOrdinalsRva + (char*)hInst);
+    WORD* pAddressOfNameOrdinals = (WORD*)(dwAddressOfNameOrdinalsRva + (char*)hInst);
 
     DWORD dwIndex = -1;
     // 首先判断是名称还是序号,得到AddressOfFunctions的索引
-    if (((DWORD)lpProcName & 0xFFFF0000) > 0)
-    {
+    if (((DWORD)lpProcName & 0xFFFF0000) > 0) {
         // 名称查询，首先获取目标名称在导出名称表中的索引
-        // 应该使用其他查找算法，此次暂时先使用简单的字符串比较
-        for (DWORD i = 0; i < pExport->NumberOfNames; ++i)
-        {
+        for (DWORD i = 0; i < pExport->NumberOfNames; ++i) {
             char* pName = (pAddressOfNames[i] + (char*)hInst);
-            if (strcmp(pName, lpProcName) == 0)
-            {
+            if (MyMemCmp(pName, (void*)lpProcName, MyStrLen(lpProcName)) == 0) {
                 // 找到目标字符串，同下标去访问名称序号表，得到最终的索引
                 dwIndex = pAddressOfNameOrdinals[i];
             }
         }
     }
-    else
-    {
+    else {
         // 使用序号查询时，the high-order word must be zero
         dwIndex = ((DWORD)lpProcName & 0xFFFF) - pExport->Base;
     }
 
-    if (dwIndex == -1)
-    {
+    if (dwIndex == -1) {
         return NULL;
     }
 
     // 判断是否为导出转发
     DWORD dwProcAddr = (DWORD)(pAddressOfFunctions[dwIndex] + (char*)hInst);
-    if ((dwProcAddr >= (DWORD)pExport) && (dwProcAddr < dwExportEnd))
-    {
+    if ((dwProcAddr >= (DWORD)pExport) && (dwProcAddr < dwExportEnd)) {
         // 如果是导出转发，则需要递归查找，对应的地址保存的转发的dll名称和函数名称
-        char dllName[MAXBYTE] = { 0 };
+        char dllName[MAXBYTE];
+        MyZeroMem(dllName, MAXBYTE);
         __asm {
             pushad;
             mov esi, dwProcAddr;
@@ -1193,8 +1173,14 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
             mov dwProcAddr, esi;
             popad;
         }
-        HMODULE hModule = ::LoadLibrary(dllName);  // 此处可优化为不使用API
-        return CMyPe::MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
+
+        HMODULE hModule = (HMODULE)MyGetModuleBase(dllName);
+        if (hModule == NULL) {
+            HMODULE hKernel32 = (HMODULE)MyGetModuleBase(szKernel32);
+            PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
+            hModule = pfnLoadLibraryA(dllName); // 模块信息表中没有要查找的模块，调用系统LoadLibrary
+        }
+        return MyGetProcAddress(hModule, (char*)dwProcAddr); // 递归查找
     }
 
     return (void*)dwProcAddr;
