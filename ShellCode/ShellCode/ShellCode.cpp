@@ -34,7 +34,6 @@ void Entry() {
     PFN_CREATEDECOMPRESSOR pfnCreateDecompressor = (PFN_CREATEDECOMPRESSOR)MyGetProcAddress(hCabinet, szCreateDecompressor);
     PFN_DECOMPRESS pfnDecompress = (PFN_DECOMPRESS)MyGetProcAddress(hCabinet, szDecompress);
     
-
     // 当前程序的PE格式解析
     HMODULE hMain = MyGetModuleBase(NULL);
     PIMAGE_DOS_HEADER pPackerDosHeader = (PIMAGE_DOS_HEADER)hMain;
@@ -47,7 +46,7 @@ void Entry() {
     DWORD dwComDataSize = pPackerSectionHeader[SHI_COM].PointerToLinenumbers; // 压缩数据的大小
     PBYTE pComDataBuff = (PBYTE)((char*)pPackerDosHeader + pPackerSectionHeader[SHI_COM].PointerToRawData); // 压缩数据的内存地址
     DWORD dwDeComDataSize = pPackerSectionHeader[SHI_COM].PointerToRelocations; // 解压后数据的大小
-    LPVOID lpDecomDataBuff = pfnVirtualAlloc(NULL, dwDeComDataSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE); //  解压后数据的内存地址
+    LPVOID lpDecomDataBuff = pfnVirtualAlloc(NULL, dwDeComDataSize, MEM_COMMIT, PAGE_READWRITE); //  解压后数据的内存地址
     
     DECOMPRESSOR_HANDLE hDeCompressor;
     BOOL bSuccess = pfnCreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &hDeCompressor);
@@ -57,12 +56,12 @@ void Entry() {
 
     DWORD dwDecompressedDataSize = 0;
     bSuccess = pfnDecompress(
-        hDeCompressor,              //  Compressor Handle
-        pComDataBuff,               //  Compressed data
-        dwComDataSize,              //  Compressed data size
-        lpDecomDataBuff,            //  Decompressed buffer
-        dwDeComDataSize,            //  Decompressed buffer size
-        &dwDecompressedDataSize);   //  Decompressed data size
+                hDeCompressor,              //  Compressor Handle
+                pComDataBuff,               //  Compressed data
+                dwComDataSize,              //  Compressed data size
+                lpDecomDataBuff,            //  Decompressed buffer
+                dwDeComDataSize,            //  Decompressed buffer size
+                &dwDecompressedDataSize);   //  Decompressed data size
     if (!bSuccess) {
         return;
     }
@@ -71,7 +70,7 @@ void Entry() {
     StretchPE((char*)pPackerDosHeader + pPackerSectionHeader[SHI_SPACE].VirtualAddress, lpDecomDataBuff);
 
     // 修复IAT
-
+    RepairIatTable((char*)pPackerDosHeader + pPackerSectionHeader[SHI_SPACE].VirtualAddress);
 
     // reloc
 
@@ -80,17 +79,81 @@ void Entry() {
 
 
     // 跳到入口点
+    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpDecomDataBuff;
+    PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
+    PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
+    PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
+    DWORD dwEntryPoint = pOptionHeader->AddressOfEntryPoint;
+    __asm jmp dwEntryPoint;
+}
 
+
+void RepairReloc(LPVOID lpFileBuff) {
 
 }
 
 
 void RepairIatTable(LPVOID lpFileBuff) {
+    // PE格式解析
+    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
+    PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
+    PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
+    PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
+    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
+
+    // 获取导入表
+    DWORD dwImportRva = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+    if (dwImportRva == 0)
+        return;
+
+    PIMAGE_IMPORT_DESCRIPTOR pImport = (PIMAGE_IMPORT_DESCRIPTOR)((char*)lpFileBuff + dwImportRva);
+    IMAGE_IMPORT_DESCRIPTOR ZeroImport;
+    MyZeroMem(&ZeroImport, sizeof(ZeroImport));
+
+    while (MyMemCmp(pImport, &ZeroImport, sizeof(IMAGE_IMPORT_DESCRIPTOR)) != 0){
+        // 判断是否为有效导入表项
+        PIMAGE_THUNK_DATA32 pIat = (PIMAGE_THUNK_DATA32)((char*)lpFileBuff + pImport->FirstThunk);
+        if (pIat->u1.AddressOfData == NULL) {
+            pImport++;
+            continue;
+        }
+
+        // 判断是使用INT还是IAT
+        DWORD dwThunkDataRva = pImport->OriginalFirstThunk;
+        if (dwThunkDataRva == NULL) {
+            dwThunkDataRva = pImport->FirstThunk;
+        }
+        PIMAGE_THUNK_DATA32 pThunkData = (PIMAGE_THUNK_DATA32)((char*)lpFileBuff + dwThunkDataRva);
+
+        // 获取dll 模块基址
+        char* pDllName = (char*)lpFileBuff + pImport->Name;
+        HMODULE hModule = MyGetModuleBase(pDllName);
+
+        // 遍历INT/IAT
+        while (pThunkData->u1.AddressOfData != NULL) {
+            // 判断是名称还是序号
+            DWORD dwFunIndex = NULL;
+            if (pThunkData->u1.AddressOfData > 0x80000000) {
+                dwFunIndex = pThunkData->u1.Ordinal & 0xffff;
+            }
+            else {
+                dwFunIndex = (DWORD)lpFileBuff + pThunkData->u1.AddressOfData + 2;
+            }   
+            pThunkData->u1.Function = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
+            pThunkData++;
+        }
+        pImport++;
+    }
 
 }
 
+
 void StretchPE(LPVOID lpDst, LPVOID lpFileBuff) {
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
     char szVirtualProtect[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'P', 'r', 'o', 't', 'e', 'c', 't', '\0' };
+
+    HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+    PFN_VIRTUALPROTECT  pfnVirtualProtect = (PFN_VIRTUALPROTECT)MyGetProcAddress(hKernel32, szVirtualProtect);
 
     // PE格式解析
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
@@ -100,6 +163,9 @@ void StretchPE(LPVOID lpDst, LPVOID lpFileBuff) {
     PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
 
     // 修改内存权限
+    DWORD dwOldProtect;
+    pfnVirtualProtect(lpDst, pOptionHeader->SizeOfImage, PAGE_EXECUTE_READWRITE, &dwOldProtect);
+
     // 拷贝PE头
     MyMemCopy(lpDst, lpFileBuff, pOptionHeader->SizeOfHeaders);
 
@@ -107,7 +173,8 @@ void StretchPE(LPVOID lpDst, LPVOID lpFileBuff) {
     for (int i = 0; i < pFileHeader->NumberOfSections; ++i) {
         if (pSectionHeader->SizeOfRawData != 0) {
             MyMemCopy((char*)lpDst + pSectionHeader->VirtualAddress, 
-                (char*)lpFileBuff + pSectionHeader->PointerToRawData, pSectionHeader->SizeOfRawData);
+                      (char*)lpFileBuff + pSectionHeader->PointerToRawData, 
+                       pSectionHeader->SizeOfRawData);
         }
         pSectionHeader++;
     }
@@ -212,6 +279,47 @@ BOOL CmpPascalStrWithCStr(const char* pPascalStr, const char* pCStr, int nCStrSi
   当传入参数为NULL时，表示获取主模块的句柄
 */
 HMODULE MyGetModuleBase(LPCSTR lpModuleName) {
+    /*
+    模块信息表{
+      +0  //前一个表的地址
+      +4  //后一个表的地址
+      +18 //当前模块的基址 hInstance
+      +1C //模块的入口点
+      +20 //SizeOfImage
+      +24 //Rtl格式的unicode字符串，保存了模块的路径
+          {
+            +0 //字符串实际长度
+            +2 //字符串所占的空间大小
+            +4 //unicode字符串的地址
+          }
+      +2C //Rtl格式的unicode字符串，保存了模块的名称
+          {
+            +0 //字符串实际长度
+            +2 //字符串所占的空间大小
+            +4 //unicode字符串的地址
+          }
+    }
+    */
+    struct MY_LIST_ENTRY {
+        struct MY_LIST_ENTRY* Flink;  //0x0
+        struct MY_LIST_ENTRY* Blink;  //0x4
+        int n1;    //0x8
+        int n2;    //0xC
+        int n3;    //0x10
+        int n4;    //0x14
+        HMODULE hInstance;      //0x18
+        void* pEntryPoint;      //0x1C
+        int nSizeOfImage;       //0x20
+
+        short sLengthOfPath;    //0x24
+        short sSizeOfPath;      //0x26
+        int* pUnicodePathName;  //0x28
+
+        short sLengthOfFile;    //0x2C
+        short sSizeOfFile;      //0x2E
+        int* pUnicodeFileName;  //0x30
+    };
+
     char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
     char szLoadLibraryA[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
 
