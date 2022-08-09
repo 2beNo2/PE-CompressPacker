@@ -1145,7 +1145,8 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
         // 名称查询，首先获取目标名称在导出名称表中的索引
         for (DWORD i = 0; i < pExport->NumberOfNames; ++i) {
             char* pName = (pAddressOfNames[i] + (char*)hInst);
-            if (MyMemCmp(pName, (void*)lpProcName, MyStrLen(lpProcName)) == 0) {
+            if (MyMemCmp(pName, (void*)lpProcName, MyStrLen(lpProcName)) == 0 &&
+                MyStrLen(lpProcName) == MyStrLen(pName)) {
                 // 找到目标字符串，同下标去访问名称序号表，得到最终的索引
                 dwIndex = pAddressOfNameOrdinals[i];
             }

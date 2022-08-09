@@ -67,10 +67,10 @@ void Entry() {
     }
 
     // 拉伸PE
-    StretchPE((char*)pPackerDosHeader + pPackerSectionHeader[SHI_SPACE].VirtualAddress, lpDecomDataBuff);
+    StretchPE(pPackerDosHeader, lpDecomDataBuff);
 
-    // 修复IAT
-    RepairIatTable((char*)pPackerDosHeader + pPackerSectionHeader[SHI_SPACE].VirtualAddress);
+    // 修复IAT，有问题
+    RepairIatTable(pPackerDosHeader);
 
     // reloc
 
@@ -83,7 +83,7 @@ void Entry() {
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
     PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
     PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
-    DWORD dwEntryPoint = pOptionHeader->AddressOfEntryPoint;
+    DWORD dwEntryPoint = (DWORD)hMain + pOptionHeader->AddressOfEntryPoint;
     __asm jmp dwEntryPoint;
 }
 
@@ -139,7 +139,7 @@ void RepairIatTable(LPVOID lpFileBuff) {
             else {
                 dwFunIndex = (DWORD)lpFileBuff + pThunkData->u1.AddressOfData + 2;
             }   
-            pThunkData->u1.Function = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
+            *(DWORD*)pThunkData = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
             pThunkData++;
         }
         pImport++;
@@ -416,7 +416,8 @@ LPVOID MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName) {
         // 名称查询，首先获取目标名称在导出名称表中的索引
         for (DWORD i = 0; i < pExport->NumberOfNames; ++i) {
             char* pName = (pAddressOfNames[i] + (char*)hInst);
-            if (MyMemCmp(pName, (void*)lpProcName, MyStrLen(lpProcName)) == 0) {
+            if (MyMemCmp(pName, (void*)lpProcName, MyStrLen(lpProcName)) == 0 &&
+                MyStrLen(lpProcName) == MyStrLen(pName)) {
                 // 找到目标字符串，同下标去访问名称序号表，得到最终的索引
                 dwIndex = pAddressOfNameOrdinals[i];
             }
