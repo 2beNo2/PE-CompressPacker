@@ -138,9 +138,12 @@ void RepairIatTable(LPVOID lpFileBuff) {
             }
             else {
                 dwFunIndex = (DWORD)lpFileBuff + pThunkData->u1.AddressOfData + 2;
-            }   
-            *(DWORD*)pThunkData = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
+            }
+
+            // 填写IAT表
+            *(DWORD*)pIat = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
             pThunkData++;
+            pIat++;
         }
         pImport++;
     }
