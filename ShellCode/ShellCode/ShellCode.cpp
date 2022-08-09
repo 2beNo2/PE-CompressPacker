@@ -44,7 +44,7 @@ void Entry() {
 
     // 解压数据
     DWORD dwComDataSize = pPackerSectionHeader[SHI_COM].PointerToLinenumbers; // 压缩数据的大小
-    PBYTE pComDataBuff = (PBYTE)((char*)pPackerDosHeader + pPackerSectionHeader[SHI_COM].PointerToRawData); // 压缩数据的内存地址
+    PBYTE pComDataBuff = (PBYTE)((char*)pPackerDosHeader + pPackerSectionHeader[SHI_COM].VirtualAddress); // 压缩数据的内存地址
     DWORD dwDeComDataSize = pPackerSectionHeader[SHI_COM].PointerToRelocations; // 解压后数据的大小
     LPVOID lpDecomDataBuff = pfnVirtualAlloc(NULL, dwDeComDataSize, MEM_COMMIT, PAGE_READWRITE); //  解压后数据的内存地址
     
