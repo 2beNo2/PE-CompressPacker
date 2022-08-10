@@ -69,14 +69,11 @@ void Entry() {
     // 拉伸PE
     StretchPE(pPackerDosHeader, lpDecomDataBuff);
 
-    // 修复IAT，有问题
+    // 修复IAT
     RepairIatTable(pPackerDosHeader);
 
-    // reloc
-
-
-    // 是否存在TLS
-
+    // Reloc
+    RepairReloc(pPackerDosHeader);
 
     // 跳到入口点
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpDecomDataBuff;
@@ -89,7 +86,41 @@ void Entry() {
 
 
 void RepairReloc(LPVOID lpFileBuff) {
+    // PE格式解析
+    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
+    PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
+    PIMAGE_FILE_HEADER pFileHeader = (PIMAGE_FILE_HEADER)(&pNtHeader->FileHeader);
+    PIMAGE_OPTIONAL_HEADER pOptionHeader = (PIMAGE_OPTIONAL_HEADER)(&pNtHeader->OptionalHeader);
+    PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((char*)pOptionHeader + pFileHeader->SizeOfOptionalHeader);
 
+    // 获取重定位表
+    if (pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == NULL) {
+        return;
+    }
+    PIMAGE_BASE_RELOCATION pReloc = (PIMAGE_BASE_RELOCATION)((char*)pDosHeader +
+                                pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+    DWORD dwRelocSize = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
+    
+    // 获取修正值
+    DWORD dwRelocValue = (DWORD)pDosHeader - pOptionHeader->ImageBase;
+    
+    // 遍历重定位表
+    DWORD dwReserve = 0;
+    while (dwReserve != dwRelocSize){
+        DWORD dwPageRva = pReloc->VirtualAddress;
+        DWORD dwSizeOfBlock = pReloc->SizeOfBlock;
+
+        WORD* pItem = (WORD*)((char*)pReloc + 8);
+        DWORD dwItemCount = (pReloc->SizeOfBlock - 8) / 2;
+        for (int i = 0; i < dwItemCount; ++i) {
+            if (pItem[i] > 0x3000) {
+                char* pTmp = (char*)pDosHeader + dwPageRva + (pItem[i] & 0xfff);
+                *(DWORD*)pTmp = *(DWORD*)pTmp + dwRelocValue;
+            }
+        }
+
+        dwReserve += dwSizeOfBlock;
+    }
 }
 
 
@@ -106,13 +137,13 @@ void RepairIatTable(LPVOID lpFileBuff) {
     if (dwImportRva == 0)
         return;
 
-    PIMAGE_IMPORT_DESCRIPTOR pImport = (PIMAGE_IMPORT_DESCRIPTOR)((char*)lpFileBuff + dwImportRva);
+    PIMAGE_IMPORT_DESCRIPTOR pImport = (PIMAGE_IMPORT_DESCRIPTOR)((char*)pDosHeader + dwImportRva);
     IMAGE_IMPORT_DESCRIPTOR ZeroImport;
     MyZeroMem(&ZeroImport, sizeof(ZeroImport));
 
     while (MyMemCmp(pImport, &ZeroImport, sizeof(IMAGE_IMPORT_DESCRIPTOR)) != 0){
         // 判断是否为有效导入表项
-        PIMAGE_THUNK_DATA32 pIat = (PIMAGE_THUNK_DATA32)((char*)lpFileBuff + pImport->FirstThunk);
+        PIMAGE_THUNK_DATA32 pIat = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + pImport->FirstThunk);
         if (pIat->u1.AddressOfData == NULL) {
             pImport++;
             continue;
@@ -123,10 +154,10 @@ void RepairIatTable(LPVOID lpFileBuff) {
         if (dwThunkDataRva == NULL) {
             dwThunkDataRva = pImport->FirstThunk;
         }
-        PIMAGE_THUNK_DATA32 pThunkData = (PIMAGE_THUNK_DATA32)((char*)lpFileBuff + dwThunkDataRva);
+        PIMAGE_THUNK_DATA32 pThunkData = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + dwThunkDataRva);
 
         // 获取dll 模块基址
-        char* pDllName = (char*)lpFileBuff + pImport->Name;
+        char* pDllName = (char*)pDosHeader + pImport->Name;
         HMODULE hModule = MyGetModuleBase(pDllName);
 
         // 遍历INT/IAT
@@ -137,7 +168,7 @@ void RepairIatTable(LPVOID lpFileBuff) {
                 dwFunIndex = pThunkData->u1.Ordinal & 0xffff;
             }
             else {
-                dwFunIndex = (DWORD)lpFileBuff + pThunkData->u1.AddressOfData + 2;
+                dwFunIndex = (DWORD)pDosHeader + pThunkData->u1.AddressOfData + 2;
             }
 
             // 填写IAT表
