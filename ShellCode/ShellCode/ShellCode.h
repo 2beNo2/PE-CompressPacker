@@ -30,5 +30,6 @@ HMODULE MyGetModuleBase(LPCSTR lpModuleName);
 LPVOID  MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName);
 void    StretchPE(LPVOID lpDst, LPVOID lpFileBuff);
 void    RepairIatTable(LPVOID lpFileBuff);
+DWORD   EncryptIat(DWORD dwFunAddr);
 void    RepairReloc(LPVOID lpFileBuff);
 

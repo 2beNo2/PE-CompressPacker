@@ -124,7 +124,41 @@ void RepairReloc(LPVOID lpFileBuff) {
 }
 
 
+DWORD EncryptIat(DWORD dwFunAddr) {
+    char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
+    char szVirtualAlloc[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'A', 'l', 'l', 'o', 'c', '\0' };
+    HMODULE hKernel32 = MyGetModuleBase(szKernel32);
+    PFN_VIRTUALALLOC pfnVirtualAlloc = (PFN_VIRTUALALLOC)MyGetProcAddress(hKernel32, szVirtualAlloc);
+
+    LPVOID lpMem = pfnVirtualAlloc(NULL, 0x20, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+    //解密ShellCode
+    byte OpCode[] = { 
+        0xe8, 0x01, 0x00, 0x00,
+        0x00, 0xe9, 0x58, 0xeb,
+        0x01, 0xe8, 0xb8, 0x8d,
+        0xe4, 0xd8, 0x62, 0xeb,
+        0x01, 0x15, 0x35, 0x75,
+        0x35, 0x97, 0x13, 0xeb,
+        0x01, 0xff, 0x50, 0xeb,
+        0x02, 0xff, 0x15, 0xc3 
+    };
+
+    //把dwFunAddr写入到解密的ShellCode中
+    OpCode[11] = dwFunAddr;
+    OpCode[12] = dwFunAddr >> 0x8;
+    OpCode[13] = dwFunAddr >> 0x10;
+    OpCode[14] = dwFunAddr >> 0x18;
+
+    MyMemCopy(lpMem, OpCode, 0x20);
+    return (DWORD)lpMem;
+}
+
+
 void RepairIatTable(LPVOID lpFileBuff) {
+    char sz_acmdln[] = { '_', 'a', 'c', 'm', 'd', 'l', 'n', '\0' };
+    char sz_adjust_fdiv[] = { '_', 'a', 'd', 'j', 'u', 's', 't', '_', 'f', 'd', 'i', 'v', '\0' };
+
     // PE格式解析
     PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpFileBuff;
     PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((char*)pDosHeader + pDosHeader->e_lfanew);
@@ -171,14 +205,24 @@ void RepairIatTable(LPVOID lpFileBuff) {
                 dwFunIndex = (DWORD)pDosHeader + pThunkData->u1.AddressOfData + 2;
             }
 
-            // 填写IAT表
-            *(DWORD*)pIat = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
+            // 对IAT中的函数地址进行加密后填写IAT表
+            DWORD dwFunAddr = (DWORD)MyGetProcAddress(hModule, (LPCSTR)dwFunIndex);
+
+            if (MyMemCmp((LPVOID)dwFunIndex, sz_acmdln, MyStrLen(sz_acmdln)) == NULL) {
+                *(DWORD*)pIat = dwFunAddr;
+            }
+            else if (MyMemCmp((LPVOID)dwFunIndex, sz_adjust_fdiv, MyStrLen(sz_adjust_fdiv)) == NULL) {
+                *(DWORD*)pIat = dwFunAddr;
+            }
+            else{
+                dwFunAddr ^= 0x13973575;
+                *(DWORD*)pIat = EncryptIat(dwFunAddr);
+            }
             pThunkData++;
             pIat++;
         }
         pImport++;
     }
-
 }
 
 
