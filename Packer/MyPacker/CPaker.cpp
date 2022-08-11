@@ -1,9 +1,9 @@
-#include "CPacker.h"
+ï»¿#include "CPaker.h"
 #include <compressapi.h>
 #pragma comment(lib, "Cabinet.lib")
 
 
-CPacker::CPacker() {
+CPaker::CPaker() {
     m_PE = nullptr;
     m_pCompressData = NULL;
     m_pShellCode = NULL;
@@ -11,7 +11,7 @@ CPacker::CPacker() {
 }
 
 
-CPacker::~CPacker() {
+CPaker::~CPaker() {
     if (m_PE != nullptr) {
         delete m_PE;
         m_PE = nullptr;
@@ -19,31 +19,31 @@ CPacker::~CPacker() {
 }
 
 
-BOOL CPacker::Pack(const char* pSrcPath, const char* pDstPath) {
-	//1¡¢PE ¸ñÊ½½âÎö
-	m_PE = new CPe(pSrcPath);
+BOOL CPaker::Pack(const char* pSrcPath, const char* pDstPath) {
+	//1ã€PE æ ¼å¼è§£æ
+	m_PE = new CMyPe(pSrcPath);
 
-	//2¡¢¶ÔÄ¿±êPEÎÄ¼ş½øĞĞÑ¹Ëõ
+	//2ã€å¯¹ç›®æ ‡PEæ–‡ä»¶è¿›è¡Œå‹ç¼©
     if (!DoCompressData()) {
         return FALSE;
     }
 
-    //3¡¢»ñÈ¡¿Ç´úÂë
+    //3ã€è·å–å£³ä»£ç 
     if (!GetShellCode()) {
         return FALSE;
     }
 
-	//4¡¢¹¹ÔìĞÂµÄ½Ú±í
+	//4ã€æ„é€ æ–°çš„èŠ‚è¡¨
     if (!RebuildSection()) {
         return FALSE;
     }
 
-	//5¡¢¹¹ÔìĞÂPEÎÄ¼şµÄPEÍ·
+	//5ã€æ„é€ æ–°PEæ–‡ä»¶çš„PEå¤´
     if (!RebuildPeHeader()) {
         return FALSE;
     }
 
-	//6¡¢Ğ´ÎÄ¼ş
+	//6ã€å†™æ–‡ä»¶
     if (!WritePackerFile(pDstPath)) {
         return FALSE;
     }
@@ -52,10 +52,10 @@ BOOL CPacker::Pack(const char* pSrcPath, const char* pDstPath) {
 }
 
 
-BOOL CPacker::DoCompressData() {
+BOOL CPaker::DoCompressData() {
     COMPRESSOR_HANDLE hCompressor = NULL;
 
-    // »ñÈ¡Ñ¹ËõµÄËã·¨µÄ¾ä±ú
+    // è·å–å‹ç¼©çš„ç®—æ³•çš„å¥æŸ„
     BOOL bSuccess = CreateCompressor(
                     COMPRESS_ALGORITHM_XPRESS_HUFF, //  Compression Algorithm
                     NULL,                           //  Optional allocation routine
@@ -64,30 +64,30 @@ BOOL CPacker::DoCompressData() {
         return FALSE;
     }
 
-    // ÉêÇë´æ·ÅÑ¹ËõºóÊı¾İµÄ»º³åÇø
+    // ç”³è¯·å­˜æ”¾å‹ç¼©åæ•°æ®çš„ç¼“å†²åŒº
     PBYTE pComPressDataBuf = new BYTE[m_PE->GetFileSize()];
     if (pComPressDataBuf == NULL) {
         return FALSE;
     }
 
-    // Ñ¹ËõÊı¾İ
+    // å‹ç¼©æ•°æ®
     DWORD dwComDataSize = 0;
     bSuccess = Compress(
                 hCompressor,
-                m_PE->GetDosHeaderPointer(), // ĞèÒªÑ¹ËõµÄÊı¾İµÄ»º³åÇø
-                m_PE->GetFileSize(),     // ĞèÒªÑ¹ËõµÄÊı¾İµÄ´óĞ¡
-                pComPressDataBuf,        // Ñ¹ËõºóµÄÊı¾İµÄ»º³åÇø
-                m_PE->GetFileSize(),     // Ñ¹ËõºóµÄÊı¾İµÄ»º³åÇø´óĞ¡
-                &dwComDataSize);         // Ñ¹ËõºóµÄÊı¾İµÄ´óĞ¡
+                m_PE->GetDosHeaderPointer(), // éœ€è¦å‹ç¼©çš„æ•°æ®çš„ç¼“å†²åŒº
+                m_PE->GetFileSize(),     // éœ€è¦å‹ç¼©çš„æ•°æ®çš„å¤§å°
+                pComPressDataBuf,        // å‹ç¼©åçš„æ•°æ®çš„ç¼“å†²åŒº
+                m_PE->GetFileSize(),     // å‹ç¼©åçš„æ•°æ®çš„ç¼“å†²åŒºå¤§å°
+                &dwComDataSize);         // å‹ç¼©åçš„æ•°æ®çš„å¤§å°
     if (!bSuccess) {
         delete[] pComPressDataBuf;
         CloseCompressor(hCompressor);
         return FALSE;
     }
 
-    // ¹¹ÔìÑ¹ËõÊı¾İ½Ú
+    // æ„é€ å‹ç¼©æ•°æ®èŠ‚
     m_dwComDataSize = dwComDataSize;
-    m_dwComDataAlignSize = CPe::GetAlignSize(m_dwComDataSize, m_PE->GetFileAlignment());
+    m_dwComDataAlignSize = CMyPe::GetAlignSize(m_dwComDataSize, m_PE->GetFileAlignment());
     m_pCompressData = new BYTE[m_dwComDataAlignSize];
     if (m_pCompressData == NULL) {
         delete[] pComPressDataBuf;
@@ -98,7 +98,7 @@ BOOL CPacker::DoCompressData() {
     ::RtlZeroMemory(m_pCompressData, m_dwComDataAlignSize);
     MyMemCopy(m_pCompressData, pComPressDataBuf, m_dwComDataSize);
 
-    // ÇåÀí×ÊÔ´
+    // æ¸…ç†èµ„æº
     delete[] pComPressDataBuf;
     CloseCompressor(hCompressor);
 	return TRUE;
@@ -365,48 +365,48 @@ unsigned char shellCode[4096] = {
 };
 
 
-BOOL CPacker::GetShellCode() {
+BOOL CPaker::GetShellCode() {
     m_pShellCode = shellCode;
-    m_dwShellCodeSize = CPe::GetAlignSize(sizeof(shellCode), m_PE->GetFileAlignment());
+    m_dwShellCodeSize = CMyPe::GetAlignSize(sizeof(shellCode), m_PE->GetFileAlignment());
 	return TRUE;
 }
 
-BOOL CPacker::RebuildSection() {
+BOOL CPaker::RebuildSection() {
     ::RtlZeroMemory(&m_NewSecHdrs[0], sizeof(m_NewSecHdrs));
 
-    // -Ã»ÓĞÎÄ¼şÓ³ÉäµÄ½Ú
+    // -æ²¡æœ‰æ–‡ä»¶æ˜ å°„çš„èŠ‚
     MyMemCopy(m_NewSecHdrs[SHI_SPACE].Name, (LPVOID)".upx", MyStrLen(".upx"));
-    m_NewSecHdrs[SHI_SPACE].VirtualAddress = CPe::GetAlignSize(m_PE->GetSizeOfHeaders(), m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_SPACE].VirtualAddress = CMyPe::GetAlignSize(m_PE->GetSizeOfHeaders(), m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_SPACE].Misc.VirtualSize = m_PE->GetSizeOfImage() - m_NewSecHdrs[SHI_SPACE].VirtualAddress;
     m_NewSecHdrs[SHI_SPACE].PointerToRawData = m_PE->GetSizeOfHeaders();
     m_NewSecHdrs[SHI_SPACE].SizeOfRawData = 0;
     m_NewSecHdrs[SHI_SPACE].Characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;
 
-    // -¿Ç´úÂë½Ú
+    // -å£³ä»£ç èŠ‚
     MyMemCopy(m_NewSecHdrs[SHI_CODE].Name, (LPVOID)".text", MyStrLen(".text"));
     m_NewSecHdrs[SHI_CODE].VirtualAddress = m_NewSecHdrs[SHI_SPACE].VirtualAddress + m_NewSecHdrs[SHI_SPACE].Misc.VirtualSize;
-    m_NewSecHdrs[SHI_CODE].Misc.VirtualSize = CPe::GetAlignSize(m_dwShellCodeSize, m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_CODE].Misc.VirtualSize = CMyPe::GetAlignSize(m_dwShellCodeSize, m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_CODE].PointerToRawData = m_NewSecHdrs[SHI_SPACE].PointerToRawData + m_NewSecHdrs[SHI_SPACE].SizeOfRawData;
     m_NewSecHdrs[SHI_CODE].SizeOfRawData = m_dwShellCodeSize;
     m_NewSecHdrs[SHI_CODE].Characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
 
 
-    // -±»Ñ¹ËõÊı¾İ½Ú
+    // -è¢«å‹ç¼©æ•°æ®èŠ‚
     MyMemCopy(m_NewSecHdrs[SHI_COM].Name, (LPVOID)".bss", MyStrLen(".bss"));
     m_NewSecHdrs[SHI_COM].VirtualAddress = m_NewSecHdrs[SHI_CODE].VirtualAddress + m_NewSecHdrs[SHI_CODE].Misc.VirtualSize;
-    m_NewSecHdrs[SHI_COM].Misc.VirtualSize = CPe::GetAlignSize(m_dwComDataAlignSize, m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_COM].Misc.VirtualSize = CMyPe::GetAlignSize(m_dwComDataAlignSize, m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_COM].PointerToRawData = m_NewSecHdrs[SHI_CODE].PointerToRawData + m_NewSecHdrs[SHI_CODE].SizeOfRawData;
     m_NewSecHdrs[SHI_COM].SizeOfRawData = m_dwComDataAlignSize;
     m_NewSecHdrs[SHI_COM].Characteristics = IMAGE_SCN_MEM_READ;
-    m_NewSecHdrs[SHI_COM].PointerToLinenumbers = m_dwComDataSize; // Ñ¹ËõÊı¾İµÄ´óĞ¡
-    m_NewSecHdrs[SHI_COM].PointerToRelocations = m_PE->GetFileSize(); // ±»Ñ¹ËõÊı¾İµÄ´óĞ¡
+    m_NewSecHdrs[SHI_COM].PointerToLinenumbers = m_dwComDataSize; // å‹ç¼©æ•°æ®çš„å¤§å°
+    m_NewSecHdrs[SHI_COM].PointerToRelocations = m_PE->GetFileSize(); // è¢«å‹ç¼©æ•°æ®çš„å¤§å°
 
 
 	return TRUE;
 }
 
-BOOL CPacker::RebuildPeHeader() {
-    // ¿½±´Ô­PEÍ·
+BOOL CPaker::RebuildPeHeader() {
+    // æ‹·è´åŸPEå¤´
     m_dwNewPeHeaderSize = m_PE->GetSizeOfHeaders();
     m_pNewPeHeader = new BYTE[m_PE->GetSizeOfHeaders()];
     if (m_pNewPeHeader == NULL) {
@@ -415,7 +415,7 @@ BOOL CPacker::RebuildPeHeader() {
     ::RtlZeroMemory(m_pNewPeHeader, m_PE->GetSizeOfHeaders());
     MyMemCopy(m_pNewPeHeader, m_PE->GetDosHeaderPointer(), m_PE->GetSizeOfHeaders());
 
-    //ĞŞ¸ÄPEÍ·
+    //ä¿®æ”¹PEå¤´
     PIMAGE_DOS_HEADER pDosHdr = (PIMAGE_DOS_HEADER)m_pNewPeHeader;
     PIMAGE_NT_HEADERS pNtHdr = (PIMAGE_NT_HEADERS)(m_pNewPeHeader + pDosHdr->e_lfanew);
     PIMAGE_SECTION_HEADER pSecHdrs = (PIMAGE_SECTION_HEADER)((PBYTE)&pNtHdr->OptionalHeader +
@@ -425,13 +425,13 @@ BOOL CPacker::RebuildPeHeader() {
     pNtHdr->OptionalHeader.AddressOfEntryPoint = m_NewSecHdrs[SHI_CODE].VirtualAddress;
     pNtHdr->OptionalHeader.SizeOfImage = m_NewSecHdrs[SHI_COM].VirtualAddress + m_NewSecHdrs[SHI_COM].Misc.VirtualSize;
 
-    //¿½±´½Ú±í
+    //æ‹·è´èŠ‚è¡¨
     MyMemCopy(pSecHdrs, m_NewSecHdrs, sizeof(m_NewSecHdrs));
 
     return TRUE;
 }
 
-BOOL CPacker::WritePackerFile(const char* pDstPath) {
+BOOL CPaker::WritePackerFile(const char* pDstPath) {
     HANDLE hFile = CreateFile(pDstPath,           
                               GENERIC_WRITE,              
                               FILE_SHARE_READ,          
@@ -444,28 +444,28 @@ BOOL CPacker::WritePackerFile(const char* pDstPath) {
     }
 
     DWORD dwBytesToWrite = 0;
-    //PEÍ·
+    //PEå¤´
     if (!WriteFile(hFile, m_pNewPeHeader, m_dwNewPeHeaderSize, &dwBytesToWrite, NULL)) {
         CloseHandle(hFile);
         return FALSE;
     }
 
-    //¿Ç´úÂë½Ú
+    //å£³ä»£ç èŠ‚
     if (!WriteFile(hFile, m_pShellCode, m_dwShellCodeSize, &dwBytesToWrite, NULL)) {
         CloseHandle(hFile);
         return FALSE;
     }
 
-    //Ñ¹ËõÊı¾İ½Ú
+    //å‹ç¼©æ•°æ®èŠ‚
     if (!WriteFile(hFile, m_pCompressData, m_dwComDataAlignSize, &dwBytesToWrite, NULL)) {
         CloseHandle(hFile);
         return FALSE;
     }
 
-    //¹Ø±ÕÎÄ¼ş
+    //å…³é—­æ–‡ä»¶
     CloseHandle(hFile);
 
-    // ÊÍ·Å×ÊÔ´
+    // é‡Šæ”¾èµ„æº
     if (m_pCompressData != NULL) {
         delete[] m_pCompressData;
         m_pCompressData = NULL;

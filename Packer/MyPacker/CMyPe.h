@@ -49,13 +49,13 @@ struct MY_LIST_ENTRY
 #define IN
 #define INOUT
 
-class CPe
+class CMyPe
 {
 public:
-    CPe();
-    CPe(void* pFileBuff);
-    CPe(const char* strFilePath);
-    ~CPe();
+    CMyPe();
+    CMyPe(void* pFileBuff);
+    CMyPe(const char* strFilePath);
+    ~CMyPe();
 
 private:
     HANDLE m_hFile;
