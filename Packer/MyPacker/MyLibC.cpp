@@ -7,7 +7,7 @@ void MyZeroMem(void* lpDstAddress, int dwSize) {
         mov edi, lpDstAddress;
         mov ecx, dwSize;
         mov eax, 0
-            rep stosb;
+        rep stosb;
     }
 }
 

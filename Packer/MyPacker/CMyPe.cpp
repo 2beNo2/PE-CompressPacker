@@ -103,6 +103,8 @@ void CMyPe::InitPeFormat(void* pFileBuff)
     m_dwSizeOfHeaders = m_pOptionHeader->SizeOfHeaders;
     m_dwNumberOfRvaAndSizes = m_pOptionHeader->NumberOfRvaAndSizes;
 
+    m_dwFileSize = m_pSectionHeader[m_wNumberOfSections - 1].PointerToRawData + m_pSectionHeader[m_wNumberOfSections - 1].SizeOfRawData;
+
     // 导出表
     DWORD dwExportRva = m_pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
     m_dwExportSize = m_pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
