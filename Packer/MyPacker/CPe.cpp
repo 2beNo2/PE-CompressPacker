@@ -1,14 +1,14 @@
 ﻿#include "pch.h"
-#include "CMyPe.h"
+#include "CPe.h"
 #include "MyLibC.h"
 
-CMyPe::CMyPe()
+CPe::CPe()
 {
     Init();
 }
 
 
-CMyPe::CMyPe(void* pFileBuff)
+CPe::CPe(void* pFileBuff)
 {
     Init();
     m_bIsMemInit = 1;
@@ -16,7 +16,7 @@ CMyPe::CMyPe(void* pFileBuff)
 }
 
 
-CMyPe::CMyPe(const char* strFilePath)
+CPe::CPe(const char* strFilePath)
 {
     Init();
     m_bIsMemInit = 0;
@@ -24,7 +24,7 @@ CMyPe::CMyPe(const char* strFilePath)
 }
 
 
-CMyPe::~CMyPe()
+CPe::~CPe()
 {
     if (m_lpFileBuff != NULL && m_bIsMemInit != 1)
     {
@@ -46,7 +46,7 @@ CMyPe::~CMyPe()
 }
 
 
-void CMyPe::Init()
+void CPe::Init()
 {
     m_lpFileBuff = NULL;
     m_pDosHeader = NULL;
@@ -79,7 +79,7 @@ void CMyPe::Init()
 }
 
 
-void CMyPe::InitPeFormat(void* pFileBuff)
+void CPe::InitPeFormat(void* pFileBuff)
 {
     if (pFileBuff == NULL) return;
 
@@ -169,7 +169,7 @@ void CMyPe::InitPeFormat(void* pFileBuff)
 }
 
 
-void CMyPe::InitPeFormat(const char* strFilePath)
+void CPe::InitPeFormat(const char* strFilePath)
 {
     if (strFilePath == NULL) return;
 
@@ -230,7 +230,7 @@ EXIT_PROC:
 }
 
 
-int CMyPe::IsPeFile(void* pFileBuff)
+int CPe::IsPeFile(void* pFileBuff)
 {
     if (pFileBuff == NULL) 
         return FILE_NOT_PE;
@@ -251,7 +251,7 @@ int CMyPe::IsPeFile(void* pFileBuff)
 }
 
 
-int CMyPe::IsPeFile(const char* strFilePath)
+int CPe::IsPeFile(const char* strFilePath)
 {
     if (strFilePath == NULL) 
         return FIlE_OPEN_FAILD;
@@ -312,7 +312,7 @@ NOTPE:
 }
 
 
-int CMyPe::WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFilePath)
+int CPe::WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFilePath)
 {
     if (pFileBuff == NULL || strFilePath == NULL) 
         return FIlE_OPEN_FAILD;
@@ -350,108 +350,108 @@ int CMyPe::WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFile
     return FIlE_WRITE_SUC;
 }
 
-DWORD CMyPe::GetFileSize() 
+DWORD CPe::GetFileSize() 
 {
     return m_dwFileSize;
 }
 
 
-LPVOID CMyPe::GetDosHeaderPointer() const
+LPVOID CPe::GetDosHeaderPointer() const
 {
     return m_pDosHeader;
 }
 
-LPVOID CMyPe::GetNtHeaderPointer() const
+LPVOID CPe::GetNtHeaderPointer() const
 {
     return m_pNtHeader;
 }
 
-LPVOID CMyPe::GetFileHeaderPointer() const
+LPVOID CPe::GetFileHeaderPointer() const
 {
     return m_pFileHeader;
 }
 
-LPVOID CMyPe::GetOptionHeaderPointer() const
+LPVOID CPe::GetOptionHeaderPointer() const
 {
     return m_pOptionHeader;
 }
 
-LPVOID CMyPe::GetSectionHeaderPointer() const
+LPVOID CPe::GetSectionHeaderPointer() const
 {
     return m_pSectionHeader;
 }
 
-LPVOID CMyPe::GetExportDirectoryPointer() const
+LPVOID CPe::GetExportDirectoryPointer() const
 {
     return m_pExportDirectory;
 }
 
-DWORD CMyPe::GetExportDirectorySize() const
+DWORD CPe::GetExportDirectorySize() const
 {
     return m_dwExportSize;
 }
 
-LPVOID CMyPe::GetImportDirectoryPointer() const
+LPVOID CPe::GetImportDirectoryPointer() const
 {
     return m_pImportDirectory;
 }
 
-LPVOID CMyPe::GetResourceDirectoryPointer() const
+LPVOID CPe::GetResourceDirectoryPointer() const
 {
     return m_pResourceDirectory;
 }
 
-LPVOID CMyPe::GetRelocDirectoryPointer() const
+LPVOID CPe::GetRelocDirectoryPointer() const
 {
     return m_pRelocDirectory;
 }
 
-DWORD CMyPe::GetRelocDirectorySize() const
+DWORD CPe::GetRelocDirectorySize() const
 {
     return m_dwRelocSize;
 }
 
-LPVOID CMyPe::GetTlsDirectoryPointer() const
+LPVOID CPe::GetTlsDirectoryPointer() const
 {
     return m_pTlsDirectory;
 }
 
-WORD CMyPe::GetNumberOfSections() const
+WORD CPe::GetNumberOfSections() const
 {
     return m_wNumberOfSections;
 }
 
-DWORD CMyPe::GetAddressOfEntryPoint() const
+DWORD CPe::GetAddressOfEntryPoint() const
 {
     return m_dwAddressOfEntryPoint;
 }
 
-DWORD CMyPe::GetImageBase() const
+DWORD CPe::GetImageBase() const
 {
     return m_dwImageBase;
 }
 
-DWORD CMyPe::GetSectionAlignment() const
+DWORD CPe::GetSectionAlignment() const
 {
     return m_dwSectionAlignment;
 }
 
-DWORD CMyPe::GetFileAlignment() const
+DWORD CPe::GetFileAlignment() const
 {
     return m_dwFileAlignment;
 }
 
-DWORD CMyPe::GetSizeOfImage() const
+DWORD CPe::GetSizeOfImage() const
 {
     return m_dwSizeOfImage;
 }
 
-DWORD CMyPe::GetSizeOfHeaders() const
+DWORD CPe::GetSizeOfHeaders() const
 {
     return m_dwSizeOfHeaders;
 }
 
-DWORD CMyPe::GetNumberOfRvaAndSizes() const
+DWORD CPe::GetNumberOfRvaAndSizes() const
 {
     return m_dwNumberOfRvaAndSizes;
 }
@@ -466,7 +466,7 @@ DWORD CMyPe::GetNumberOfRvaAndSizes() const
   成功返回数据的FA
   失败返回-1
 */
-DWORD CMyPe::Rva2Fa(DWORD dwRva, LPVOID lpFileBuff)
+DWORD CPe::Rva2Fa(DWORD dwRva, LPVOID lpFileBuff)
 {
     if (lpFileBuff == NULL) 
         return -1;
@@ -512,7 +512,7 @@ DWORD CMyPe::Rva2Fa(DWORD dwRva, LPVOID lpFileBuff)
 返回值：
   返回数据的对齐值
 */
-DWORD CMyPe::GetAlignSize(DWORD dwDataSize, DWORD dwAlign)
+DWORD CPe::GetAlignSize(DWORD dwDataSize, DWORD dwAlign)
 {
     if (dwDataSize == 0)
         return 0;
@@ -539,7 +539,7 @@ DWORD CMyPe::GetAlignSize(DWORD dwDataSize, DWORD dwAlign)
   dwDataSize = 0时，表示增加一个没有文件映射的节
   返回的内存地址是malloc申请的，使用完记得调用free
 */
-LPVOID CMyPe::AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, LPVOID lpDataBuff, DWORD dwDataSize)
+LPVOID CPe::AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, LPVOID lpDataBuff, DWORD dwDataSize)
 {
     if (lpOldFileBuff == NULL) 
         return NULL;
@@ -623,7 +623,7 @@ LPVOID CMyPe::AddSection(LPVOID lpOldFileBuff, DWORD dwOldFileSize, LPVOID lpDat
 返回值：
   通过参数返回目标模块的名称
 */
-void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
+void CPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
 {
     if (hInst == NULL)
         return;
@@ -682,7 +682,7 @@ void CMyPe::MyGetModuleName(HMODULE hInst, OUT LPSTR lpModuleName)
 返回值：
   通过参数返回目标模块的路径
 */
-void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
+void CPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 {
     if (hInst == NULL)
         return;
@@ -743,7 +743,7 @@ void CMyPe::MyGetModulePath(HMODULE hInst, OUT LPSTR lpModulePath)
 注意：
   当传入参数为NULL时，表示获取主模块的句柄
 */
-HMODULE CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
+HMODULE CPe::MyGetModuleBase(LPCSTR lpModuleName)
 {
     typedef HMODULE(WINAPI* PFN_LOADLIBRARYA)(LPCSTR);
     char szKernel32[] = { 'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', '\0' };
@@ -809,7 +809,7 @@ HMODULE CMyPe::MyGetModuleBase(LPCSTR lpModuleName)
   成功返回模块句柄
   失败返回NULL
 */
-LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
+LPVOID CPe::MyLoadLibrary(LPCSTR lpModulePath)
 {
     HANDLE hFile = INVALID_HANDLE_VALUE;
     HANDLE hFileMap = NULL;
@@ -826,7 +826,7 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
         return NULL;
 
     // 先在模块列表中查找模块是否已经加载
-    HMODULE hInst = (HMODULE)CMyPe::MyGetModuleBase(lpModulePath);
+    HMODULE hInst = (HMODULE)CPe::MyGetModuleBase(lpModulePath);
     if (hInst != NULL)
     {
         return hInst;
@@ -874,7 +874,7 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
     }
 
     // PE 格式解析
-    CMyPe* pDll = new CMyPe(lpFileBuff);
+    CPe* pDll = new CPe(lpFileBuff);
     DWORD dwSizeOfImage = pDll->GetSizeOfImage();
     
     // 申请内存空间，可以通过模块信息表获取函数地址
@@ -932,7 +932,7 @@ LPVOID CMyPe::MyLoadLibrary(LPCSTR lpModulePath)
                 HMODULE hKernel32 = MyGetModuleBase(szKernel32);
                 PFN_LOADLIBRARYA  pfnLoadLibraryA = (PFN_LOADLIBRARYA)MyGetProcAddress(hKernel32, szLoadLibraryA);
                 HMODULE hModule = pfnLoadLibraryA((char*)lpDllBuff + pImport->Name); 
-                LPVOID lpFunAddr = CMyPe::MyGetProcAddress(hModule, (LPCSTR)lpThunkData);
+                LPVOID lpFunAddr = CPe::MyGetProcAddress(hModule, (LPCSTR)lpThunkData);
 
                 // 填到IAT中
                 *(DWORD*)((char*)lpDllBuff + pImport->FirstThunk) = (DWORD)lpFunAddr;
@@ -1013,7 +1013,7 @@ EXIT_PROC:
   成功返回函数名称或序号
   失败返回NULL
 */
-LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
+LPVOID CPe::MyGetProcFunName(LPVOID pfnAddr)
 {
     if (pfnAddr == NULL)
         return NULL;
@@ -1112,7 +1112,7 @@ LPVOID CMyPe::MyGetProcFunName(LPVOID pfnAddr)
   成功返回查找到的函数地址
   失败返回NULL
 */
-LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
+LPVOID CPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
 {
     if (hInst == NULL || lpProcName == NULL)
         return NULL;
@@ -1203,7 +1203,7 @@ LPVOID CMyPe::MyGetProcAddress(HMODULE hInst, LPCSTR lpProcName)
   成功返回PE文件新的内存地址
   失败返回NULL
 */
-LPVOID CMyPe::MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR lpProcName)
+LPVOID CPe::MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR lpProcName)
 {
     if (lpFileBuff == NULL || lpDllName == NULL || lpProcName == NULL)
         return NULL;
@@ -1217,7 +1217,7 @@ LPVOID CMyPe::MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR l
 
     // 获取旧的导入表的位置和项数
     DWORD dwImportRva = pOptionHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
-    DWORD dwImportFa = CMyPe::Rva2Fa(dwImportRva, lpFileBuff);
+    DWORD dwImportFa = CPe::Rva2Fa(dwImportRva, lpFileBuff);
     LPVOID lpOldImportTable = (char*)lpFileBuff + dwImportFa;
 
     //
@@ -1233,7 +1233,7 @@ LPVOID CMyPe::MyAddImportTableItem(LPVOID lpFileBuff, LPCSTR lpDllName, LPCSTR l
     // 增加一个新节，同时将原来的导入表拷贝到新节
     DWORD dwOldFileSize = pSectionHeader[pFileHeader->NumberOfSections - 1].SizeOfRawData +
         pSectionHeader[pFileHeader->NumberOfSections - 1].PointerToRawData;
-    LPVOID lpNewFileBuff = CMyPe::AddSection(lpFileBuff,
+    LPVOID lpNewFileBuff = CPe::AddSection(lpFileBuff,
         dwOldFileSize,
         lpOldImportTable,
         dwOldImportCount * sizeof(IMAGE_IMPORT_DESCRIPTOR));

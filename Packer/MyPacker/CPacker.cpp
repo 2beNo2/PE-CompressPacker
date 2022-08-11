@@ -1,4 +1,4 @@
-#include "CPaker.h"
+#include "CPacker.h"
 #include <compressapi.h>
 #pragma comment(lib, "Cabinet.lib")
 
@@ -21,7 +21,7 @@ CPacker::~CPacker() {
 
 BOOL CPacker::Pack(const char* pSrcPath, const char* pDstPath) {
 	//1、PE 格式解析
-	m_PE = new CMyPe(pSrcPath);
+	m_PE = new CPe(pSrcPath);
 
 	//2、对目标PE文件进行压缩
     if (!DoCompressData()) {
@@ -87,7 +87,7 @@ BOOL CPacker::DoCompressData() {
 
     // 构造压缩数据节
     m_dwComDataSize = dwComDataSize;
-    m_dwComDataAlignSize = CMyPe::GetAlignSize(m_dwComDataSize, m_PE->GetFileAlignment());
+    m_dwComDataAlignSize = CPe::GetAlignSize(m_dwComDataSize, m_PE->GetFileAlignment());
     m_pCompressData = new BYTE[m_dwComDataAlignSize];
     if (m_pCompressData == NULL) {
         delete[] pComPressDataBuf;
@@ -367,7 +367,7 @@ unsigned char shellCode[4096] = {
 
 BOOL CPacker::GetShellCode() {
     m_pShellCode = shellCode;
-    m_dwShellCodeSize = CMyPe::GetAlignSize(sizeof(shellCode), m_PE->GetFileAlignment());
+    m_dwShellCodeSize = CPe::GetAlignSize(sizeof(shellCode), m_PE->GetFileAlignment());
 	return TRUE;
 }
 
@@ -376,7 +376,7 @@ BOOL CPacker::RebuildSection() {
 
     // -没有文件映射的节
     MyMemCopy(m_NewSecHdrs[SHI_SPACE].Name, (LPVOID)".upx", MyStrLen(".upx"));
-    m_NewSecHdrs[SHI_SPACE].VirtualAddress = CMyPe::GetAlignSize(m_PE->GetSizeOfHeaders(), m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_SPACE].VirtualAddress = CPe::GetAlignSize(m_PE->GetSizeOfHeaders(), m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_SPACE].Misc.VirtualSize = m_PE->GetSizeOfImage() - m_NewSecHdrs[SHI_SPACE].VirtualAddress;
     m_NewSecHdrs[SHI_SPACE].PointerToRawData = m_PE->GetSizeOfHeaders();
     m_NewSecHdrs[SHI_SPACE].SizeOfRawData = 0;
@@ -385,7 +385,7 @@ BOOL CPacker::RebuildSection() {
     // -壳代码节
     MyMemCopy(m_NewSecHdrs[SHI_CODE].Name, (LPVOID)".text", MyStrLen(".text"));
     m_NewSecHdrs[SHI_CODE].VirtualAddress = m_NewSecHdrs[SHI_SPACE].VirtualAddress + m_NewSecHdrs[SHI_SPACE].Misc.VirtualSize;
-    m_NewSecHdrs[SHI_CODE].Misc.VirtualSize = CMyPe::GetAlignSize(m_dwShellCodeSize, m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_CODE].Misc.VirtualSize = CPe::GetAlignSize(m_dwShellCodeSize, m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_CODE].PointerToRawData = m_NewSecHdrs[SHI_SPACE].PointerToRawData + m_NewSecHdrs[SHI_SPACE].SizeOfRawData;
     m_NewSecHdrs[SHI_CODE].SizeOfRawData = m_dwShellCodeSize;
     m_NewSecHdrs[SHI_CODE].Characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
@@ -394,7 +394,7 @@ BOOL CPacker::RebuildSection() {
     // -被压缩数据节
     MyMemCopy(m_NewSecHdrs[SHI_COM].Name, (LPVOID)".bss", MyStrLen(".bss"));
     m_NewSecHdrs[SHI_COM].VirtualAddress = m_NewSecHdrs[SHI_CODE].VirtualAddress + m_NewSecHdrs[SHI_CODE].Misc.VirtualSize;
-    m_NewSecHdrs[SHI_COM].Misc.VirtualSize = CMyPe::GetAlignSize(m_dwComDataAlignSize, m_PE->GetSectionAlignment());
+    m_NewSecHdrs[SHI_COM].Misc.VirtualSize = CPe::GetAlignSize(m_dwComDataAlignSize, m_PE->GetSectionAlignment());
     m_NewSecHdrs[SHI_COM].PointerToRawData = m_NewSecHdrs[SHI_CODE].PointerToRawData + m_NewSecHdrs[SHI_CODE].SizeOfRawData;
     m_NewSecHdrs[SHI_COM].SizeOfRawData = m_dwComDataAlignSize;
     m_NewSecHdrs[SHI_COM].Characteristics = IMAGE_SCN_MEM_READ;

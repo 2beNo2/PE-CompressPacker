@@ -49,13 +49,13 @@ struct MY_LIST_ENTRY
 #define IN
 #define INOUT
 
-class CMyPe
+class CPe
 {
 public:
-    CMyPe();
-    CMyPe(void* pFileBuff);
-    CMyPe(const char* strFilePath);
-    ~CMyPe();
+    CPe();
+    CPe(void* pFileBuff);
+    CPe(const char* strFilePath);
+    ~CPe();
 
 private:
     HANDLE m_hFile;
@@ -78,9 +78,10 @@ public:
         FILE_NOT_PE,
         FILE_IS_PE
     };
-    static int IsPeFile(void* pFileBuff);
-    static int IsPeFile(const char* strFilePath);
-    static int WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFilePath);
+    static int  IsPeFile(void* pFileBuff);
+    static int  IsPeFile(const char* strFilePath);
+    // static BOOL IsCanPack(const char* strFilePath);
+    static int  WriteMemoryToFile(void* pFileBuff, int nFileSize, const char* strFilePath);
     DWORD GetFileSize();
 
 public:

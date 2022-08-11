@@ -1,7 +1,7 @@
 #pragma once
 
 #include <windows.h>
-#include "CMyPe.h"
+#include "CPe.h"
 #include "MyLibC.h"
 
 class CPacker {
@@ -13,8 +13,8 @@ public:
     BOOL Pack(const char* pSrcPath, const char* pDstPath);
 
 private:
-    // PE数据
-    CMyPe* m_PE;
+    // PE数据解析相关
+    CPe* m_PE;
 
 private:
     // 压缩操作相关
