@@ -1,4 +1,4 @@
-# PePacker
+# Pe Compress Shell
 - 尝试编写一个简单的压缩壳，只支持32位程序
 - Todo：
   - 判断文件是否为PE格式
