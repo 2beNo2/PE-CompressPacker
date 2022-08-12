@@ -30,271 +30,32 @@ BOOL CPaker::Pack(const char* pSrcPath, const char* pDstPath) {
 	//1、PE格式解析
 	m_PE = new CMyPe(pSrcPath);
     
-    //2、导入表处理
-    PBYTE pTmp = new BYTE[m_PE->GetFileSize() >> 2];
-    if (pTmp == NULL) {
-        return FALSE;
-    }
-    m_dwImportTableSize = MoveImportTable(pTmp);
-    if (m_dwImportTableSize != NULL) {
-        m_pImportTableBuff = new BYTE[m_dwImportTableSize];
-        if (m_pImportTableBuff == NULL) {
-            return FALSE;
-        }
-        MyMemCopy(m_pImportTableBuff, pTmp, m_dwImportTableSize);
-        
-        // 清除原导入表
-        // ClearImportTable();
-    }
-
-    // 重定位表处理
-    MyZeroMem(pTmp, m_PE->GetFileSize() >> 2);
-    m_dwRelocTableSize = MoveRelocTable(pTmp);
-    if (m_dwRelocTableSize != NULL) {
-        m_pRelocBuff = new BYTE[m_dwRelocTableSize];
-        if (m_pRelocBuff == NULL) {
-            return FALSE;
-        }
-        MyMemCopy(m_pRelocBuff, pTmp, m_dwRelocTableSize);
-
-        // 清除原重定位表，将新的重定位转储拷贝到重定位表的位置
-        // ClearRelocTable();
-    }
-
-    if (pTmp != NULL) {
-        delete[] pTmp;
-    }
-
-    //3、压缩处理
+    //2、压缩处理
     if (!DoCompress()) {
         return FALSE;
     }
 
-    //4、获取壳代码
+    //3、获取壳代码
     if (!GetShellCode()) {
         return FALSE;
     }
 
-	//5、构造新的节表
+	//4、构造新的节表
     if (!RebuildSection()) {
         return FALSE;
     }
 
-	//6、构造新PE文件的PE头
+	//5、构造新PE文件的PE头
     if (!RebuildPeHeader()) {
         return FALSE;
     }
 
-	//7、写文件
+	//6、写文件
     if (!WritePackerFile(pDstPath)) {
         return FALSE;
     }
 
     return TRUE;
-}
-
-
-DWORD CPaker::MoveImportTable(PBYTE pImportTableBuff){
-    /*
-    {
-        DWORD  FirstThunk    // RVA,IAT表的位置
-        BYTE   DllNameLength
-        String DllName
-        db     00
-        DWORD  InitCount
-        BYTE   FunNameLength // 如果等于0，表示是序号
-        String FunName
-        db     00            // 表示字符串的结尾
-        dd     0             // 4字节0表示Dll信息结尾
-    }
-    */
-    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)m_PE->GetDosHeaderPointer();
-    PIMAGE_IMPORT_DESCRIPTOR pImport = (PIMAGE_IMPORT_DESCRIPTOR)m_PE->GetImportDirectoryPointer();
-    if (pImport == NULL) {
-        return 0;
-    }
-
-    // 遍历导入表
-    PBYTE pFunNum = NULL;
-    PBYTE pData = pImportTableBuff;
-    IMAGE_IMPORT_DESCRIPTOR ZeroImport;
-    MyZeroMem(&ZeroImport, sizeof(ZeroImport));
-
-    while (MyMemCmp(pImport, &ZeroImport, sizeof(IMAGE_IMPORT_DESCRIPTOR)) != 0) {
-        
-        // 判断是否为有效导入表项
-        PIMAGE_THUNK_DATA32 pIat = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + CMyPe::Rva2Fa(pImport->FirstThunk, pDosHeader));
-        if (pIat->u1.AddressOfData == NULL) {
-            pImport++;
-            continue;
-        }
-
-        // 保存 FirstThunk DllNameLength DllName InitCount
-        *(DWORD*)pData = pImport->FirstThunk;
-        pData += sizeof(DWORD);
-
-        char* pDllName = (char*)pDosHeader + CMyPe::Rva2Fa(pImport->Name, pDosHeader);
-        *(BYTE*)pData = (BYTE)MyStrLen(pDllName);
-        pData += sizeof(BYTE);
-        MyMemCopy(pData, pDllName, MyStrLen(pDllName) + 1);
-        pData += MyStrLen(pDllName) + 1;
-
-        pFunNum = pData;
-        *(DWORD*)pFunNum = 0;
-        pData += sizeof(DWORD);
-
-        // 判断是使用INT还是IAT
-        DWORD dwThunkDataRva = pImport->OriginalFirstThunk;
-        if (dwThunkDataRva == NULL) {
-            dwThunkDataRva = pImport->FirstThunk;
-        }
-        PIMAGE_THUNK_DATA32 pThunkData = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + CMyPe::Rva2Fa(dwThunkDataRva, pDosHeader));
-
-        // 遍历INT/IAT
-        while (pThunkData->u1.AddressOfData != NULL) {
-            DWORD dwFunIndex = NULL;
-            if (pThunkData->u1.AddressOfData > 0x80000000) {
-                // 序号
-                dwFunIndex = pThunkData->u1.Ordinal & 0xffff;
-                *(BYTE*)pData = 0;
-                pData += sizeof(BYTE);
-                *(DWORD*)pData = dwFunIndex;
-                pData += sizeof(DWORD);
-            }
-            else {
-                // 名称
-                dwFunIndex = (DWORD)pDosHeader + CMyPe::Rva2Fa(pThunkData->u1.AddressOfData, pDosHeader) + 2;
-                *(BYTE*)pData = (BYTE)MyStrLen((char*)dwFunIndex);
-                pData += sizeof(BYTE);
-                MyMemCopy(pData, (char*)dwFunIndex, MyStrLen((char*)dwFunIndex) + 1);
-                pData += MyStrLen((char*)dwFunIndex) + 1;
-            }
-
-            (*(DWORD*)pFunNum)++;
-            pThunkData++;
-        }
-
-        *(DWORD*)pData = 0;
-        pData += sizeof(DWORD);
-        pImport++;
-    }
-
-    return (DWORD)pData - (DWORD)pImportTableBuff;
-}
-
-
-void CPaker::ClearImportTable(){
-    /*
-        clear DllName
-        clear OriginalFirstThunk
-        clear FirstThunk
-    */
-    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)m_PE->GetDosHeaderPointer();
-    PIMAGE_IMPORT_DESCRIPTOR pImport = (PIMAGE_IMPORT_DESCRIPTOR)m_PE->GetImportDirectoryPointer();
-
-    // 遍历导入表
-    IMAGE_IMPORT_DESCRIPTOR ZeroImport;
-    MyZeroMem(&ZeroImport, sizeof(ZeroImport));
-
-    while (MyMemCmp(pImport, &ZeroImport, sizeof(IMAGE_IMPORT_DESCRIPTOR)) != 0) {
-
-        // 判断是否为有效导入表项
-        PIMAGE_THUNK_DATA32 pIat = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + CMyPe::Rva2Fa(pImport->FirstThunk, pDosHeader));
-        if (pIat->u1.AddressOfData == NULL) {
-            pImport++;
-            continue;
-        }
-
-        char* pDllName = (char*)pDosHeader + CMyPe::Rva2Fa(pImport->Name, pDosHeader);
-        MyZeroMem(pDllName, MyStrLen(pDllName));
-
-        // 判断是使用INT还是IAT
-        DWORD dwThunkDataRva = pImport->OriginalFirstThunk;
-        if (pImport->OriginalFirstThunk == NULL) {
-            dwThunkDataRva = pImport->FirstThunk;
-        }
-        PIMAGE_THUNK_DATA32 pThunkData = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + CMyPe::Rva2Fa(dwThunkDataRva, pDosHeader));
-
-        // 遍历INT/IAT
-        while (pThunkData->u1.AddressOfData != NULL) {
-            DWORD dwFunIndex = NULL;
-            if (pThunkData->u1.AddressOfData > 0x80000000) {
-                // 序号
-                dwFunIndex = pThunkData->u1.Ordinal & 0xffff;
-                MyZeroMem(pThunkData, sizeof(DWORD));
-            }
-            else {
-                // 名称
-                dwFunIndex = (DWORD)pDosHeader + CMyPe::Rva2Fa(pThunkData->u1.AddressOfData, pDosHeader) + 2;
-                MyZeroMem((char*)dwFunIndex, MyStrLen((char*)dwFunIndex));
-                MyZeroMem(pThunkData, sizeof(DWORD));
-            }
-            pThunkData++;
-        }
-
-        pThunkData = (PIMAGE_THUNK_DATA32)((char*)pDosHeader + CMyPe::Rva2Fa(pImport->FirstThunk, pDosHeader));
-        while (pThunkData->u1.AddressOfData != NULL) {
-            MyZeroMem(pThunkData, sizeof(DWORD));
-            pThunkData++;
-        }
-
-        MyZeroMem(pImport, sizeof(IMAGE_IMPORT_DESCRIPTOR));
-        pImport++;
-    }
-}
-
-
-DWORD CPaker::MoveRelocTable(PBYTE pRelocTableBuff) {
-    /*
-    {
-        BYTE   Type          // 修复类型
-        DWORD  FirstTypeRva  // 该页上第一个需要修复的数据RVA
-        WORD   Item          // 与FirstTypeRva 的差值
-        DWORD  0             // 4字节0表示结尾
-    }
-    */
-    PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)m_PE->GetDosHeaderPointer();
-    PIMAGE_BASE_RELOCATION pReloc = (PIMAGE_BASE_RELOCATION)m_PE->GetRelocDirectoryPointer();
-    DWORD dwRelocSize = m_PE->GetRelocDirectorySize();
-    if (pReloc == NULL) {
-        return 0;
-    }
-
-    // 遍历重定位表
-    PBYTE pData = pRelocTableBuff;
-    DWORD dwReserve = 0;
-    while (dwReserve != dwRelocSize) {
-        DWORD dwPageRva = pReloc->VirtualAddress;
-        DWORD dwSizeOfBlock = pReloc->SizeOfBlock;
-
-        *(BYTE*)pData = 3;
-        pData += sizeof(BYTE);
-
-        WORD* pItem = (WORD*)((char*)pReloc + 8);
-        DWORD dwItemCount = (pReloc->SizeOfBlock - 8) / 2;
-        for (int i = 0; i < dwItemCount; ++i) {
-            if (pItem[i] > 0x3000) {
-                if (i == 0) {
-                    *(WORD*)pData = (pItem[0] & 0xfff) + dwPageRva;
-                }
-                else {
-                    *(WORD*)pData = (pItem[i] & 0xfff) - (pItem[0] & 0xfff) + dwPageRva;
-                }
-                pData += sizeof(WORD);
-            }
-        }
-
-        *(DWORD*)pData = 0;
-        pData += sizeof(DWORD);
-
-        dwReserve += dwSizeOfBlock;
-    }
-    return (DWORD)pData - (DWORD)pRelocTableBuff;
-}
-
-
-void CPaker::ClearRelocTable() {
-
 }
 
 
